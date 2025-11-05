@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
 #[derive(Debug, FromRow)]
-pub struct Accounts {
+pub struct Account {
     pub address: String,
     pub lamports: i64,
     pub owner: String,
