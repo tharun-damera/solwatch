@@ -9,6 +9,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 
 use crate::db::accounts::check_account_exists;
+use crate::solana;
 
 pub async fn websocket_handler(
     ws: WebSocketUpgrade,
@@ -18,11 +19,8 @@ pub async fn websocket_handler(
     ws.on_upgrade(move |socket| handle_socket(socket, pool, address))
 }
 
-async fn handle_socket(mut socket: WebSocket, _pool: PgPool, address: String) {
-    while let Some(Ok(message)) = socket.recv().await {
-        println!("address: {:?}", address);
-        println!("message: {:?}", message);
-    }
+async fn handle_socket(socket: WebSocket, pool: PgPool, address: String) {
+    solana::index_address(socket, &pool, address).await.ok();
 }
 
 #[derive(Serialize)]
