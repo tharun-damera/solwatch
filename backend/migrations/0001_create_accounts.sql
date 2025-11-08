@@ -1,8 +1,8 @@
 -- Add migration script here
 CREATE TABLE accounts (
-    address VARCHAR(50) PRIMARY KEY,
+    address VARCHAR(44) PRIMARY KEY,
     lamports BIGINT NOT NULL,
-    owner VARCHAR(50) NOT NULL,
+    owner VARCHAR(44) NOT NULL,
     executable BOOLEAN NOT NULL,
     data_length BIGINT NOT NULL,
     rent_epoch BIGINT NOT NULL,

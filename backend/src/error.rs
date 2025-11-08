@@ -2,6 +2,7 @@ use sqlx::{Error as SqlxError, migrate::MigrateError};
 use std::{env::VarError, io::Error as IoError};
 use thiserror::Error;
 
+use serde_json::Error as SerdeJsonError;
 use solana_client::client_error::ClientError;
 use solana_sdk::pubkey::ParsePubkeyError;
 
@@ -40,6 +41,12 @@ impl From<IoError> for AppError {
 
 impl From<VarError> for AppError {
     fn from(e: VarError) -> Self {
+        AppError::InternalError(e.to_string())
+    }
+}
+
+impl From<SerdeJsonError> for AppError {
+    fn from(e: SerdeJsonError) -> Self {
         AppError::InternalError(e.to_string())
     }
 }
