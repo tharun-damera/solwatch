@@ -20,6 +20,7 @@ pub async fn websocket_handler(
     ws.on_upgrade(move |socket| handle_socket(socket, pool, address))
 }
 
+// Websocket handler that handles the Indexing of the Solana account based on the address
 async fn handle_socket(mut socket: WebSocket, pool: PgPool, address: String) {
     if let Err(e) = solana::index_address(&mut socket, &pool, &address).await {
         solana::send_error_message(&mut socket, &address, e).await;
@@ -31,6 +32,7 @@ struct AccountStatus {
     indexed: bool,
 }
 
+// Entry point API of the app that checks whether the Solana account is indexed or not
 #[instrument(skip(pool))]
 pub async fn get_account_status(
     Path(address): Path<String>,
