@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use solana_client::nonblocking::rpc_client::RpcClient;
+
 mod db;
 mod error;
 mod handlers;
@@ -6,6 +10,9 @@ mod models;
 mod routes;
 mod solana;
 mod tracer;
+
+// Solana Devnet RPC URL
+const DEV_NET: &str = "https://api.devnet.solana.com";
 
 #[tokio::main]
 async fn main() -> Result<(), error::AppError> {
@@ -20,9 +27,15 @@ async fn main() -> Result<(), error::AppError> {
     // Initiate a Postgres connection pool
     let pool = db::init().await?;
 
+    // Connect to the Solana Devnet through RPC (Remote Procedure Call)
+    let rpc = Arc::new(RpcClient::new(DEV_NET.to_string()));
+
+    // Create an AppState containing PgPool and RpcClient
+    let state = routes::AppState { pool, rpc };
+
     // Create an app router for handling requests
-    // that takes in PgPool as state to perform DB operations
-    let app = routes::create_router(pool);
+    // that takes in the AppState to perform DB operations & RPC calls
+    let app = routes::create_router(state);
 
     // Add a tcp binding to listen to requests at port 5000
     // Localhost (127.0.0.1) for Local

@@ -6,23 +6,30 @@ use axum::{
     response::IntoResponse,
 };
 use serde::Serialize;
-use sqlx::PgPool;
 use tracing::{Level, event, instrument};
 
-use crate::db::accounts::check_account_exists;
-use crate::solana;
+use crate::{db::accounts::check_account_exists, routes::AppState, solana};
 
 pub async fn websocket_handler(
     ws: WebSocketUpgrade,
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Path(address): Path<String>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, pool, address))
+    ws.on_upgrade(move |socket| {
+        handle_socket(
+            socket,
+            AppState {
+                pool: state.pool,
+                rpc: state.rpc.clone(),
+            },
+            address,
+        )
+    })
 }
 
 // Websocket handler that handles the Indexing of the Solana account based on the address
-async fn handle_socket(mut socket: WebSocket, pool: PgPool, address: String) {
-    if let Err(e) = solana::index_address(&mut socket, &pool, &address).await {
+async fn handle_socket(mut socket: WebSocket, state: AppState, address: String) {
+    if let Err(e) = solana::index_address(&mut socket, state, &address).await {
         solana::send_error_message(&mut socket, &address, e).await;
     }
 }
@@ -33,13 +40,13 @@ struct AccountStatus {
 }
 
 // Entry point API of the app that checks whether the Solana account is indexed or not
-#[instrument(skip(pool))]
+#[instrument(skip(state))]
 pub async fn get_account_status(
     Path(address): Path<String>,
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
 ) -> impl IntoResponse {
     event!(Level::INFO, "Checking account indexer status: {address}");
 
-    let indexed = check_account_exists(&pool, address).await;
+    let indexed = check_account_exists(&state.pool, address).await;
     Json(AccountStatus { indexed })
 }

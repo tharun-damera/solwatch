@@ -2,9 +2,8 @@ use std::str::FromStr;
 
 use axum::extract::ws::{Message, WebSocket};
 use serde::Serialize;
-use solana_client::rpc_client::{GetConfirmedSignaturesForAddress2Config, RpcClient};
+use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
 use solana_sdk::pubkey::Pubkey;
-use sqlx::PgPool;
 use tracing::{Level, event, instrument};
 
 use crate::{
@@ -12,10 +11,8 @@ use crate::{
     error::AppError,
     message::IndexingMessage,
     models::{AccountCreate, TransactionSignatureCreate},
+    routes::AppState,
 };
-
-// Solana Devnet RPC URL
-const DEV_NET: &str = "https://api.devnet.solana.com";
 
 pub async fn send_message<T: Serialize>(socket: &mut WebSocket, value: T) {
     // Convert the passed-in value to a json string
@@ -48,17 +45,17 @@ pub async fn send_error_message(socket: &mut WebSocket, address: &str, error: Ap
     .await;
 }
 
-#[instrument(skip(socket, pool))]
+#[instrument(skip(socket, state))]
 pub async fn index_address(
     socket: &mut WebSocket,
-    pool: &PgPool,
+    state: AppState,
     address: &str,
 ) -> Result<(), AppError> {
     // Convert the address str to Address struct instance of Solana account
     let public_key = Pubkey::from_str(address)?;
 
     // Before indexing the account, check if it is already indexed
-    if check_account_exists(pool, address.to_string()).await {
+    if check_account_exists(&state.pool, address.to_string()).await {
         return Err(AppError::BadRequestError(
             "Account is already indexed".to_string(),
         ));
@@ -67,16 +64,13 @@ pub async fn index_address(
     event!(Level::INFO, "Begin indexing the address");
     send_message(socket, IndexingMessage::Started { address: &address }).await;
 
-    // Connect to the Solana Devnet through RPC (Remote Procedure Call)
-    let connection = RpcClient::new(DEV_NET);
-
     // Get the Solana account data of the address
-    let account = connection.get_account(&public_key)?;
+    let account = state.rpc.get_account(&public_key).await?;
     event!(Level::INFO, ?account);
 
     // Insert the account data into DB
     let inserted_acc = insert_account(
-        pool,
+        &state.pool,
         AccountCreate {
             address: address.to_string(),
             lamports: account.lamports as i64,
@@ -93,15 +87,18 @@ pub async fn index_address(
     send_message(socket, IndexingMessage::AccountData(inserted_acc)).await;
 
     // Get only the latest 100 transaction signatures
-    let signatures = connection.get_signatures_for_address_with_config(
-        &public_key,
-        GetConfirmedSignaturesForAddress2Config {
-            before: None,
-            until: None,
-            limit: Some(100),
-            commitment: None,
-        },
-    )?;
+    let signatures = state
+        .rpc
+        .get_signatures_for_address_with_config(
+            &public_key,
+            GetConfirmedSignaturesForAddress2Config {
+                before: None,
+                until: None,
+                limit: Some(100),
+                commitment: None,
+            },
+        )
+        .await?;
     event!(Level::INFO, ?signatures);
 
     let mut txn_signs: Vec<TransactionSignatureCreate> = vec![];
@@ -118,10 +115,9 @@ pub async fn index_address(
             )?)?,
         });
     }
-    event!(Level::INFO, ?txn_signs);
 
     // Insert the parsed transactions into DB
-    let query_result = insert_transactions(pool, &txn_signs).await?;
+    let query_result = insert_transactions(&state.pool, &txn_signs).await?;
     event!(
         Level::INFO,
         "Insert transactions query result: {query_result:?}"
