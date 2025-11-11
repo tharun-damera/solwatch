@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use mongodb::{Client, Database};
 use solana_client::nonblocking::rpc_client::RpcClient;
 
 mod db;
@@ -14,6 +15,13 @@ mod tracer;
 // Solana Devnet RPC URL
 const DEV_NET: &str = "https://api.devnet.solana.com";
 
+#[derive(Clone)]
+pub struct AppState {
+    pub client: Client,
+    pub db: Database,
+    pub rpc: Arc<RpcClient>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), error::AppError> {
     // Load the variables from the .env file as env variables
@@ -24,14 +32,14 @@ async fn main() -> Result<(), error::AppError> {
     // Lives as long as the main fn
     let _guard = tracer::setup_tracing();
 
-    // Initiate a Postgres connection pool
-    let pool = db::init().await?;
+    // Setup Mongo Client and Database
+    let (client, db) = db::init().await?;
 
     // Connect to the Solana Devnet through RPC (Remote Procedure Call)
     let rpc = Arc::new(RpcClient::new(DEV_NET.to_string()));
 
-    // Create an AppState containing PgPool and RpcClient
-    let state = routes::AppState { pool, rpc };
+    // Create an AppState containing Mongo Client, Database and RpcClient
+    let state = AppState { client, db, rpc };
 
     // Create an app router for handling requests
     // that takes in the AppState to perform DB operations & RPC calls

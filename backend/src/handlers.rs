@@ -8,23 +8,14 @@ use axum::{
 use serde::Serialize;
 use tracing::{Level, event, instrument};
 
-use crate::{db::accounts::check_account_exists, routes::AppState, solana};
+use crate::{AppState, db::accounts::check_account_exists, solana};
 
 pub async fn websocket_handler(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
     Path(address): Path<String>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| {
-        handle_socket(
-            socket,
-            AppState {
-                pool: state.pool,
-                rpc: state.rpc.clone(),
-            },
-            address,
-        )
-    })
+    ws.on_upgrade(move |socket| handle_socket(socket, state.clone(), address))
 }
 
 // Websocket handler that handles the Indexing of the Solana account based on the address
@@ -45,8 +36,10 @@ pub async fn get_account_status(
     Path(address): Path<String>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    event!(Level::INFO, "Checking account indexer status: {address}");
+    let state = state.clone();
 
-    let indexed = check_account_exists(&state.pool, address).await;
+    event!(Level::INFO, "Checking account indexer status: {address}");
+    let indexed = check_account_exists(&state.db, &address).await;
+
     Json(AccountStatus { indexed })
 }

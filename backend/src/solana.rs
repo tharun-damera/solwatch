@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use axum::extract::ws::{Message, WebSocket};
+use chrono::Utc;
 use serde::Serialize;
 use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
@@ -8,11 +9,11 @@ use solana_transaction_status::UiTransactionEncoding;
 use tracing::{Level, event, instrument};
 
 use crate::{
+    AppState,
     db::accounts::{check_account_exists, insert_account, insert_transactions},
     error::AppError,
     message::IndexingMessage,
-    models::{AccountCreate, TransactionSignatureCreate},
-    routes::AppState,
+    models::{Account, TransactionSignature},
 };
 
 pub async fn send_message<T: Serialize>(socket: &mut WebSocket, value: T) {
@@ -56,7 +57,7 @@ pub async fn index_address(
     let public_key = Pubkey::from_str(address)?;
 
     // Before indexing the account, check if it is already indexed
-    if check_account_exists(&state.pool, address.to_string()).await {
+    if check_account_exists(&state.db, address).await {
         return Err(AppError::BadRequestError(
             "Account is already indexed".to_string(),
         ));
@@ -69,23 +70,22 @@ pub async fn index_address(
     let account = state.rpc.get_account(&public_key).await?;
     event!(Level::INFO, ?account);
 
+    let account = Account {
+        address: address.to_string(),
+        lamports: account.lamports as i64,
+        owner: account.owner.to_string(),
+        executable: account.executable,
+        data_length: account.data.len() as i64,
+        rent_epoch: account.rent_epoch as i64,
+        indexed_at: Utc::now().into(),
+        last_updated_at: Utc::now().into(),
+    };
+
     // Insert the account data into DB
-    let inserted_acc = insert_account(
-        &state.pool,
-        AccountCreate {
-            address: address.to_string(),
-            lamports: account.lamports as i64,
-            owner: account.owner.to_string(),
-            executable: account.executable,
-            data_length: account.data.len() as i64,
-            rent_epoch: account.rent_epoch as i64,
-        },
-    )
-    .await?;
-    event!(Level::INFO, ?inserted_acc);
+    insert_account(&state.db, &account).await?;
 
     // Send the account data to the client via socket communication
-    send_message(socket, IndexingMessage::AccountData(inserted_acc)).await;
+    send_message(socket, IndexingMessage::AccountData(account)).await;
 
     // Get only the latest 100 transaction signatures
     let signatures = state
@@ -102,11 +102,11 @@ pub async fn index_address(
         .await?;
     event!(Level::INFO, ?signatures);
 
-    let mut txn_signs: Vec<TransactionSignatureCreate> = vec![];
+    let mut txn_signs: Vec<TransactionSignature> = vec![];
 
     // Parse the actual transaction signatures to DB format
     for sign in signatures {
-        txn_signs.push(TransactionSignatureCreate {
+        txn_signs.push(TransactionSignature {
             signature: sign.signature.clone(),
             account_address: address.to_string(),
             slot: sign.slot as i64,
@@ -114,6 +114,7 @@ pub async fn index_address(
             confirmation_status: serde_json::from_str(&serde_json::to_string(
                 &sign.confirmation_status,
             )?)?,
+            indexed_at: Utc::now().into(),
         });
 
         let signature = Signature::from_str(&sign.signature)?;
@@ -125,11 +126,7 @@ pub async fn index_address(
     }
 
     // Insert the parsed transactions into DB
-    let query_result = insert_transactions(&state.pool, &txn_signs).await?;
-    event!(
-        Level::INFO,
-        "Insert transactions query result: {query_result:?}"
-    );
+    insert_transactions(&state.db, &txn_signs).await?;
 
     // Send the parsed transactions to the client
     send_message(

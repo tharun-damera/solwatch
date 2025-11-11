@@ -1,7 +1,7 @@
-use sqlx::{Error as SqlxError, migrate::MigrateError};
 use std::{env::VarError, io::Error as IoError};
 use thiserror::Error;
 
+use mongodb::error::Error as MongoError;
 use serde_json::Error as SerdeJsonError;
 use solana_client::client_error::ClientError;
 use solana_sdk::{pubkey::ParsePubkeyError, signature::ParseSignatureError};
@@ -25,16 +25,9 @@ pub enum AppError {
     BadRequestError(String),
 }
 
-// Map the sqlx::Error to the DatabaseError variant of the AppError
-impl From<SqlxError> for AppError {
-    fn from(e: SqlxError) -> Self {
-        AppError::DatabaseError(e.to_string())
-    }
-}
-
-// Map the sqlx::migrate::MigrateError to the DatabaseError variant of the AppError
-impl From<MigrateError> for AppError {
-    fn from(e: MigrateError) -> Self {
+// Map the MongoError to the DatabaseError variant of the AppError
+impl From<MongoError> for AppError {
+    fn from(e: MongoError) -> Self {
         AppError::DatabaseError(e.to_string())
     }
 }

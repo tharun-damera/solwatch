@@ -1,21 +1,17 @@
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use mongodb::{Client, Database};
 
 use crate::error::AppError;
 
 pub mod accounts;
 
-pub async fn init() -> Result<PgPool, AppError> {
-    // Get the Database URL from the env
-    let db_url = std::env::var("DATABASE_URL")?;
+pub async fn init() -> Result<(Client, Database), AppError> {
+    // Get the Mongo URI and DB name from the env
+    let uri = std::env::var("MONGO_URI")?;
+    let db = std::env::var("MONGO_DB")?;
 
-    // Setup the connection pool for Postgres DB
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&db_url)
-        .await?;
+    // Setup the Mongo Client
+    let client = Client::with_uri_str(uri).await?;
+    let db = client.database(&db);
 
-    // Perform the DB migrations
-    sqlx::migrate!("./migrations").run(&pool).await?;
-
-    Ok(pool)
+    Ok((client, db))
 }

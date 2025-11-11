@@ -1,16 +1,10 @@
 # Solwatch 🛰️ (Still in Development)
 
-A selective Solana indexer and dashboard that tracks any wallet's on-chain activity in real-time.
-Built with Rust (Axum, Tokio, SQLx) + React + PostgreSQL.
-
-## Features
-- Real-time transaction feed via WebSocket.
-- Background indexer fetching Solana account data.
-- Postgres-backed caching for fast queries.
-- Reactive UI for transaction and balance updates.
+A Selective/Lazy Solana Indexer and dashboard that tracks any wallet's on-chain activity in real-time.
+Built with Rust (Axum, Tokio) + React + MongoDB.
 
 ## Tech Stack
-**Backend:** Rust (Axum, SQLx, Tokio)  
-**Frontend:** React + JavaScript  
-**Database:** PostgreSQL  
-**Infra:** Docker Compose  
+**Backend:** Rust (Axum, Tokio, Mongodb)
+**Frontend:** React
+**Database:** MongoDB
+**Infra:** Docker Compose

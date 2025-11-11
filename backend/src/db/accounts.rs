@@ -1,86 +1,56 @@
-use sqlx::{PgPool, QueryBuilder, postgres::PgQueryResult};
+use mongodb::{Database, bson::doc};
 use tracing::{Level, event};
 
 use crate::error::AppError;
-use crate::models::{Account, AccountCreate, TransactionSignatureCreate};
+use crate::models::{Account, TransactionSignature};
 
-pub async fn get_account(pool: &PgPool, address: String) -> Result<Account, AppError> {
-    let account = sqlx::query_as!(Account, "SELECT * FROM accounts WHERE address=$1", address)
-        .fetch_one(pool)
+pub async fn get_account(db: &Database, address: &str) -> Result<Option<Account>, AppError> {
+    let account = db
+        .collection::<Account>("accounts")
+        .find_one(doc! {"_id": address})
         .await?;
+
     Ok(account)
 }
 
-pub async fn check_account_exists(pool: &PgPool, address: String) -> bool {
-    let account = get_account(pool, address).await;
-    match account {
-        Ok(acc) => {
-            event!(Level::INFO, "Account Found in DB: {acc:?}");
-            true
-        }
+pub async fn check_account_exists(db: &Database, address: &str) -> bool {
+    match get_account(db, address).await {
+        Ok(acc) => match acc {
+            Some(account) => {
+                event!(Level::INFO, "Account Found: {account:?}");
+                true
+            }
+            None => {
+                event!(Level::INFO, "Account Not Found");
+                false
+            }
+        },
         Err(e) => {
-            event!(Level::ERROR, "Account Not Found in DB: {e:?}");
+            event!(Level::ERROR, "Error occurred while finding account: {e:?}");
             false
         }
     }
 }
 
-pub async fn insert_account(pool: &PgPool, account: AccountCreate) -> Result<Account, AppError> {
-    let account = sqlx::query_as!(
-        Account,
-        "INSERT INTO accounts (
-            address,
-            lamports,
-            owner,
-            executable,
-            data_length,
-            rent_epoch
-        ) VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            $6
-        ) 
-        RETURNING *",
-        account.address,
-        account.lamports,
-        account.owner,
-        account.executable,
-        account.data_length,
-        account.rent_epoch,
-    )
-    .fetch_one(pool)
-    .await?;
+pub async fn insert_account(db: &Database, account: &Account) -> Result<(), AppError> {
+    let inserted = db
+        .collection::<Account>("accounts")
+        .insert_one(account)
+        .await?;
+    event!(Level::INFO, ?inserted);
 
-    Ok(account)
+    Ok(())
 }
 
 pub async fn insert_transactions(
-    pool: &PgPool,
-    signatures: &[TransactionSignatureCreate],
-) -> Result<PgQueryResult, AppError> {
-    let mut qb = QueryBuilder::new(
-        "INSERT INTO transaction_signatures (
-            signature,
-            account_address,
-            slot,
-            block_time,
-            confirmation_status
-        ) ",
-    );
-    qb.push_values(signatures.iter(), |mut b, txn| {
-        b.push_bind(&txn.signature)
-            .push_bind(&txn.account_address)
-            .push_bind(txn.slot)
-            .push_bind(txn.block_time)
-            .push_bind(&txn.confirmation_status);
-    });
-    qb.push(";");
+    db: &Database,
+    signatures: &[TransactionSignature],
+) -> Result<(), AppError> {
+    let inserted = db
+        .collection::<TransactionSignature>("transaction_signatures")
+        .insert_many(signatures)
+        .await?;
+    event!(Level::INFO, ?inserted);
 
-    let query = qb.build();
-    let txn_signs = query.execute(pool).await?;
-
-    Ok(txn_signs)
+    Ok(())
 }
