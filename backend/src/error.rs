@@ -1,3 +1,5 @@
+use axum::{Json, http::StatusCode, response::IntoResponse};
+use serde::Serialize;
 use std::{env::VarError, io::Error as IoError};
 use thiserror::Error;
 
@@ -9,20 +11,42 @@ use solana_sdk::{pubkey::ParsePubkeyError, signature::ParseSignatureError};
 // Create an AppError using thiserror that handles almost all errors
 #[derive(Error, Debug)]
 pub enum AppError {
-    #[error("Database Error: {0}")]
-    DatabaseError(String),
+    #[error("Bad Request: {0}")]
+    BadRequestError(String),
 
-    #[error("Axum Error: {0}")]
-    AxumError(#[from] axum::Error),
-
-    #[error("Solana Error: {0}")]
-    SolanaError(String),
+    #[error("Not Found: {0}")]
+    NotFoundError(String),
 
     #[error("Internal Error: {0}")]
     InternalError(String),
 
-    #[error("Bad Request: {0}")]
-    BadRequestError(String),
+    #[error("Database Error: {0}")]
+    DatabaseError(String),
+
+    #[error("Solana Error: {0}")]
+    SolanaError(String),
+}
+
+// Custom Error Response
+#[derive(Serialize)]
+struct ErrorResponse {
+    error: String,
+}
+
+// Send appropriate state code and the error message in the response when an error occurs in a handler
+impl IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let (status_code, message) = match self {
+            AppError::BadRequestError(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::NotFoundError(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::DatabaseError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::SolanaError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+        };
+        let body = Json(ErrorResponse { error: message });
+
+        (status_code, body).into_response()
+    }
 }
 
 // Map the MongoError to the DatabaseError variant of the AppError
