@@ -4,6 +4,7 @@ use mongodb::{Client, Database};
 use solana_client::nonblocking::rpc_client::RpcClient;
 use tracing::{Level, event, instrument};
 
+mod cors;
 mod db;
 mod error;
 mod handlers;
