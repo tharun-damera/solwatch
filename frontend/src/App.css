@@ -1,6 +1,6 @@
 :root {
   --bg: #0f1115;
-  --card: #14171b;
+  --card: #141a2575;
   --muted: #9aa4b2;
   --accent1: #06b6d4;
   --accent2: #8b5cf6;
@@ -41,12 +41,12 @@ button {
 }
 .title {
   font-weight: 700;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .container {
   width: 100%;
-  max-width: 1140px;
+  max-width: 1024px;
   margin-right: auto;
   margin-left: auto;
   padding: 0 12px;
@@ -128,11 +128,23 @@ table {
 th,
 td {
   text-align: left;
-  padding: 15px 20px;
+  padding: 18px 30px;
   border-top: 1px solid var(--row-border);
 }
 
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono",
     monospace;
+}
+
+a {
+  text-decoration: none;
+  color: #3fb1c5;
+}
+
+.truncated-text {
+  white-space: no-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 350px;
 }

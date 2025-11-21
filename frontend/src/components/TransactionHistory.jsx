@@ -75,7 +75,11 @@ export default function TransactionHistory({ address }) {
           <tbody>
             {txns.map((txn) => (
               <tr key={txn._id}>
-                <td>{txn._id}</td>
+                <td>
+                  <div className="truncated-text">
+                    <a href="">{txn._id}</a>
+                  </div>
+                </td>
                 <td>{txn.block_time}</td>
                 <td>{txn.slot}</td>
                 <td>{txn.confirmation_status.toUpperCase()}</td>

@@ -3,9 +3,9 @@ import { Card, CardHeader, CardBody } from "./Card";
 
 export default function IndexingUpdates({
   address,
-  txnsFetched,
+  txnsIndexed,
   setAccount,
-  setTxnsFetched,
+  settxnsIndexed,
   setError,
 }) {
   let [accountFetched, setAccountFetched] = useState(false);
@@ -22,7 +22,7 @@ export default function IndexingUpdates({
       setAccountFetched(true);
     });
     sse.addEventListener("transactions-fetched", (e) => {
-      setTxnsFetched(JSON.parse(e.data));
+      settxnsIndexed(JSON.parse(e.data));
     });
     sse.addEventListener("error", (e) => {
       sse.close();
@@ -39,7 +39,7 @@ export default function IndexingUpdates({
     return () => {
       sse.close();
     };
-  }, [address, setAccount, setTxnsFetched, setError]);
+  }, [address, setAccount, settxnsIndexed, setError]);
 
   if (err) {
     return <></>;
@@ -65,7 +65,7 @@ export default function IndexingUpdates({
             </tr>
             <tr>
               <td>Transactions Fetched</td>
-              <td style={{ textAlign: "center" }}>{txnsFetched}</td>
+              <td style={{ textAlign: "center" }}>{txnsIndexed}</td>
             </tr>
           </tbody>
         </table>
