@@ -1,0 +1,150 @@
+:root {
+  --bg: #0f1115;
+  --card: #141a2575;
+  --muted: #9aa4b2;
+  --accent1: #06b6d4;
+  --accent2: #8b5cf6;
+  --text: #e6eef6;
+  --border: #0f1115;
+  --row-border: #282d2b;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 13px;
+}
+
+button {
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  display: flex;
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.logo {
+  width: 24px;
+}
+.title {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.container {
+  width: 100%;
+  max-width: 1024px;
+  margin-right: auto;
+  margin-left: auto;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.search-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: var(--text);
+}
+
+.sol-gradient-btn {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--accent1), var(--accent2));
+  border: none;
+  color: #011627;
+  font-weight: 700;
+}
+
+.empty-state {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+  padding: 40px;
+  border-radius: 10px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.error {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #4b1f1f;
+  color: #ffd6d6;
+}
+
+.horizontal-line {
+  border-top: 2px solid var(--row-border);
+  width: 100%;
+  margin: 20px auto;
+  height: 0;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 9px 16px #201e2480;
+  margin-bottom: 30px;
+}
+
+.card-header {
+  padding: 18px 24px;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.card-body {
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 18px 30px;
+  border-top: 1px solid var(--row-border);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono",
+    monospace;
+}
+
+a {
+  text-decoration: none;
+  color: #3fb1c5;
+}
+
+.truncated-text {
+  white-space: no-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 350px;
+}
