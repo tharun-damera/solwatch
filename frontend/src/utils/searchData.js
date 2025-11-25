@@ -11,8 +11,10 @@ export async function searchAddress(
   window.history.replaceState({}, "", `?address=${address}`);
   if (result.indexed) {
     let acc = await accountData(address);
+    setIndexed(true);
     setAccount(acc);
   } else {
     setIndexed(false);
+    setAccount(null);
   }
 }

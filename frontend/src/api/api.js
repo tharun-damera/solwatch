@@ -5,8 +5,6 @@ export async function accountIndexStatus(address) {
     method: "GET",
   });
   let resp = await res.json();
-  console.log(resp);
-
   return resp;
 }
 

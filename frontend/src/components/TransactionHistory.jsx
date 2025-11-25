@@ -3,7 +3,11 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardHeader, CardBody, CardFooter } from "./Card";
 import { transactionHistory } from "../api/api";
 
-export default function TransactionHistory({ address, setDetailedTxn }) {
+export default function TransactionHistory({
+  address,
+  account,
+  setDetailedTxn,
+}) {
   const LIMIT = 20;
 
   const [txns, setTxns] = useState([]);
@@ -62,7 +66,7 @@ export default function TransactionHistory({ address, setDetailedTxn }) {
     if (!address) return;
 
     reset_states();
-  }, [address]);
+  }, [account]);
 
   return (
     <Card>

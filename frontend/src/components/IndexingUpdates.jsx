@@ -30,8 +30,7 @@ export default function IndexingUpdates({
       setError(e.data);
       setLoading(false);
     });
-    sse.addEventListener("close", (e) => {
-      console.log(e.data);
+    sse.addEventListener("close", () => {
       sse.close();
       setLoading(false);
     });

@@ -21,6 +21,7 @@ export default function App() {
 
   async function handleSearch(addr) {
     setError(null);
+    setIndexed(true);
     setLoading(true);
     await searchAddress(addr, setAddress, setIndexed, setAccount);
     setLoading(false);
@@ -45,7 +46,7 @@ export default function App() {
           onSearch={handleSearch}
         />
         {error && <div className="error">{error}</div>}
-        <div class="horizontal-line"></div>
+        <div className="horizontal-line"></div>
 
         {!loading && !account && <EmptyState />}
 
@@ -58,20 +59,21 @@ export default function App() {
               settxnsIndexed={settxnsIndexed}
               setError={setError}
             />
-            <div class="horizontal-line"></div>
+            <div className="horizontal-line"></div>
           </>
         )}
 
         {account && (
           <>
             <Account data={account} />
-            <div class="horizontal-line"></div>
+            <div className="horizontal-line"></div>
           </>
         )}
 
         {account && (indexed || txnsIndexed > 0) && (
           <TransactionHistory
             address={address}
+            account={account}
             setDetailedTxn={setDetailedTxn}
           />
         )}
