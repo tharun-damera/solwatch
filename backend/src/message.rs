@@ -2,14 +2,13 @@ use serde::Serialize;
 
 use crate::models::Account;
 
-// Enum that is used in Websocket communication messages
-// Server sends the messages to client based on the IndexingMessage enum variants
+// SyncStatus enum is used in SSE API communication
 #[derive(Debug, Serialize)]
-#[serde(tag = "type")]
-pub enum IndexingMessage {
-    Started { address: String },
+pub enum SyncStatus {
+    Started,
     AccountData { data: Account },
     TransactionSignatures { fetched: u64 },
-    Completed { address: String },
+    TransactionDetails { fetched: u64 },
+    Completed,
     Error { message: String },
 }

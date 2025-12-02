@@ -14,17 +14,17 @@ use crate::{
         transactions::{insert_transactions, insert_transactions_signatures},
     },
     error::AppError,
-    message::IndexingMessage,
+    message::SyncStatus,
     models::{Account, Transaction, TransactionSignature},
 };
 
 #[instrument(skip(sender, error))]
-pub async fn send_error_message(sender: mpsc::Sender<IndexingMessage>, error: AppError) {
+pub async fn send_error_message(sender: mpsc::Sender<SyncStatus>, error: AppError) {
     event!(Level::ERROR, "Error occurred: {error}");
 
     // Send the error message to the client
     if let Err(err) = sender
-        .send(IndexingMessage::Error {
+        .send(SyncStatus::Error {
             message: error.to_string(),
         })
         .await
@@ -37,10 +37,20 @@ pub async fn send_error_message(sender: mpsc::Sender<IndexingMessage>, error: Ap
     }
 }
 
+async fn send_sync_message(sender: &mpsc::Sender<SyncStatus>, status: SyncStatus) {
+    if let Err(err) = sender.send(status).await {
+        event!(
+            Level::ERROR,
+            "Error occcured may be receiver dropped: {}",
+            err.to_string()
+        );
+    }
+}
+
 #[instrument(skip(state, sender))]
 pub async fn indexer(
     state: AppState,
-    sender: mpsc::Sender<IndexingMessage>,
+    sender: mpsc::Sender<SyncStatus>,
     address: String,
 ) -> Result<(), AppError> {
     // Convert the address str to Address struct instance of Solana account
@@ -54,18 +64,7 @@ pub async fn indexer(
     }
 
     event!(Level::INFO, "Begin indexing the address");
-    if let Err(err) = sender
-        .send(IndexingMessage::Started {
-            address: address.clone(),
-        })
-        .await
-    {
-        event!(
-            Level::ERROR,
-            "Error occcured may be receiver dropped: {}",
-            err.to_string()
-        );
-    }
+    send_sync_message(&sender, SyncStatus::Started).await;
 
     // Get the Solana account data of the address
     let account = state.rpc.get_account(&public_key).await?;
@@ -86,16 +85,7 @@ pub async fn indexer(
     insert_account(&state.db, &account).await?;
 
     // Send the account data to the channel
-    if let Err(err) = sender
-        .send(IndexingMessage::AccountData { data: account })
-        .await
-    {
-        event!(
-            Level::ERROR,
-            "Error occcured may be receiver dropped: {}",
-            err.to_string()
-        );
-    }
+    send_sync_message(&sender, SyncStatus::AccountData { data: account }).await;
 
     // Get only the latest 20 transaction signatures
     let signatures = state
@@ -110,7 +100,6 @@ pub async fn indexer(
             },
         )
         .await?;
-    event!(Level::INFO, ?signatures);
 
     if signatures.is_empty() {
         return Err(AppError::SolanaError(
@@ -137,19 +126,14 @@ pub async fn indexer(
     // Insert the transaction signatures into DB
     insert_transactions_signatures(&state.db, &txn_signs).await?;
 
-    // Send the transactions data status to the channel
-    if let Err(err) = sender
-        .send(IndexingMessage::TransactionSignatures {
+    // Send the transaction signatures data status to the channel
+    send_sync_message(
+        &sender,
+        SyncStatus::TransactionSignatures {
             fetched: txn_signs.len() as u64,
-        })
-        .await
-    {
-        event!(
-            Level::ERROR,
-            "Error occcured may be receiver dropped: {}",
-            err.to_string()
-        );
-    }
+        },
+    )
+    .await;
 
     let mut txns: Vec<Transaction> = vec![];
     for sign in &signatures {
@@ -159,7 +143,6 @@ pub async fn indexer(
             .rpc
             .get_transaction(&signature, UiTransactionEncoding::JsonParsed)
             .await?;
-        event!(Level::INFO, ?txn);
 
         txns.push(Transaction {
             signature: sign.signature.clone(),
@@ -174,10 +157,20 @@ pub async fn indexer(
     // Insert the transactions into DB
     insert_transactions(&state.db, &txns).await?;
 
+    // Send the transactions data status to the channel
+    send_sync_message(
+        &sender,
+        SyncStatus::TransactionDetails {
+            fetched: txns.len() as u64,
+        },
+    )
+    .await;
+
     event!(
         Level::INFO,
-        "Batch-1 of {} transactions completed",
-        signatures.len()
+        "Batch-1 of signatures {} & transactions {} completed",
+        signatures.len(),
+        txns.len()
     );
     let next_signature = signatures.last().unwrap().signature.clone();
     continue_indexing(
@@ -187,6 +180,7 @@ pub async fn indexer(
         public_key,
         next_signature,
         signatures.len(),
+        txns.len(),
     )
     .await?;
 
@@ -196,17 +190,19 @@ pub async fn indexer(
 #[instrument(skip_all)]
 async fn continue_indexing(
     state: AppState,
-    sender: mpsc::Sender<IndexingMessage>,
+    sender: mpsc::Sender<SyncStatus>,
     address: String,
     public_key: Pubkey,
     next_signature: String,
     fetched_signatures: usize,
+    fetched_transactions: usize,
 ) -> Result<(), AppError> {
     event!(Level::INFO, "Fetching the rest of the transactions");
 
-    let mut total_txns = fetched_signatures;
+    let mut total_signs = fetched_signatures;
+    let mut total_txns = fetched_transactions;
     let mut batch = 1;
-    const BATCH_SIZE: usize = 1000;
+    const BATCH_SIZE: usize = 10;
 
     let mut before_signature = next_signature;
 
@@ -249,21 +245,16 @@ async fn continue_indexing(
         // Insert the transaction signatures into DB
         insert_transactions_signatures(&state.db, &txn_signs).await?;
 
-        total_txns += signatures.len();
+        total_signs += signatures.len();
 
-        // Send the transactions data status to the channel
-        if let Err(err) = sender
-            .send(IndexingMessage::TransactionSignatures {
-                fetched: total_txns as u64,
-            })
-            .await
-        {
-            event!(
-                Level::ERROR,
-                "Error occcured may be receiver dropped: {}",
-                err.to_string()
-            );
-        }
+        // Send the transaction signatures data status to the channel
+        send_sync_message(
+            &sender,
+            SyncStatus::TransactionSignatures {
+                fetched: total_signs as u64,
+            },
+        )
+        .await;
 
         let mut txns: Vec<Transaction> = vec![];
         for sign in &signatures {
@@ -274,7 +265,6 @@ async fn continue_indexing(
                 .rpc
                 .get_transaction(&signature, UiTransactionEncoding::JsonParsed)
                 .await?;
-            event!(Level::INFO, ?txn);
 
             txns.push(Transaction {
                 signature: sign.signature.clone(),
@@ -289,8 +279,25 @@ async fn continue_indexing(
         // Insert the transactions into DB
         insert_transactions(&state.db, &txns).await?;
 
+        total_txns += txns.len();
+
+        // Send the transaction signatures data status to the channel
+        send_sync_message(
+            &sender,
+            SyncStatus::TransactionDetails {
+                fetched: total_txns as u64,
+            },
+        )
+        .await;
+
         batch += 1;
-        event!(Level::INFO, total_txns, batch, "Batch completed");
+        event!(
+            Level::INFO,
+            "Batch-{} of signatures {} & transactions {} completed",
+            batch,
+            signatures.len(),
+            txns.len()
+        );
 
         before_signature = signatures.last().unwrap().signature.clone();
 
@@ -299,14 +306,8 @@ async fn continue_indexing(
 
     event!(Level::INFO, "Indexing is completed");
 
-    // Send the completed indexing message to the channel for now to test
-    if let Err(err) = sender.send(IndexingMessage::Completed { address }).await {
-        event!(
-            Level::ERROR,
-            "Error occcured may be receiver dropped: {}",
-            err.to_string()
-        );
-    }
+    // Send the completed indexing message to the channel
+    send_sync_message(&sender, SyncStatus::Completed).await;
 
     Ok(())
 }

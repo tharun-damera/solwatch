@@ -20,7 +20,7 @@ use crate::{
         transactions::{get_transaction, get_transaction_signatures, get_transactions},
     },
     error::AppError,
-    message::IndexingMessage,
+    message::SyncStatus,
     solana,
 };
 
@@ -39,17 +39,18 @@ pub async fn indexer_sse(
 
     let stream = ReceiverStream::new(receiver).map(|msg| {
         let event = match msg {
-            IndexingMessage::Started { address } => {
-                Event::default().event("indexing-started").data(address)
-            }
-            IndexingMessage::AccountData { data } => Event::default()
+            SyncStatus::Started => Event::default().event("indexing-started"),
+            SyncStatus::AccountData { data } => Event::default()
                 .event("account-fetched")
                 .data(serde_json::to_string(&data).unwrap()),
-            IndexingMessage::TransactionSignatures { fetched } => Event::default()
+            SyncStatus::TransactionSignatures { fetched } => Event::default()
+                .event("signatures-fetched")
+                .data(fetched.to_string()),
+            SyncStatus::TransactionDetails { fetched } => Event::default()
                 .event("transactions-fetched")
                 .data(fetched.to_string()),
-            IndexingMessage::Error { message } => Event::default().event("error").data(message),
-            IndexingMessage::Completed { address } => Event::default().event("close").data(address),
+            SyncStatus::Error { message } => Event::default().event("error").data(message),
+            SyncStatus::Completed => Event::default().event("close"),
         };
 
         Ok(event)
