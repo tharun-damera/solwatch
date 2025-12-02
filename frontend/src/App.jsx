@@ -16,7 +16,8 @@ export default function App() {
   let [account, setAccount] = useState(null);
   let [error, setError] = useState(null);
   let [indexed, setIndexed] = useState(true);
-  let [txnsIndexed, settxnsIndexed] = useState(0);
+  let [signaturesIndexed, setSignaturesIndexed] = useState(0);
+  let [txnsIndexed, setTxnsIndexed] = useState(0);
   let [detailedTxn, setDetailedTxn] = useState(null);
 
   async function handleSearch(addr) {
@@ -53,9 +54,11 @@ export default function App() {
           <>
             <IndexingUpdates
               address={address}
+              signaturesIndexed={signaturesIndexed}
               txnsIndexed={txnsIndexed}
               setAccount={setAccount}
-              settxnsIndexed={settxnsIndexed}
+              setSignaturesIndexed={setSignaturesIndexed}
+              setTxnsIndexed={setTxnsIndexed}
               setError={setError}
             />
             <div className="horizontal-line"></div>
@@ -69,7 +72,7 @@ export default function App() {
           </>
         )}
 
-        {account && (indexed || txnsIndexed > 0) && (
+        {account && (indexed || signaturesIndexed > 0) && (
           <TransactionHistory
             address={address}
             account={account}

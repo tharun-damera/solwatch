@@ -3,9 +3,11 @@ import { Card, CardHeader, CardBody } from "./Card";
 
 export default function IndexingUpdates({
   address,
+  signaturesIndexed,
   txnsIndexed,
   setAccount,
-  settxnsIndexed,
+  setSignaturesIndexed,
+  setTxnsIndexed,
   setError,
 }) {
   let [accountFetched, setAccountFetched] = useState(false);
@@ -21,8 +23,11 @@ export default function IndexingUpdates({
       setAccount(JSON.parse(e.data));
       setAccountFetched(true);
     });
+    sse.addEventListener("signatures-fetched", (e) => {
+      setSignaturesIndexed(JSON.parse(e.data));
+    });
     sse.addEventListener("transactions-fetched", (e) => {
-      settxnsIndexed(JSON.parse(e.data));
+      setTxnsIndexed(JSON.parse(e.data));
     });
     sse.addEventListener("error", (e) => {
       sse.close();
@@ -38,7 +43,7 @@ export default function IndexingUpdates({
     return () => {
       sse.close();
     };
-  }, [address, setAccount, settxnsIndexed, setError]);
+  }, [address, setAccount, setSignaturesIndexed, setTxnsIndexed, setError]);
 
   if (err) {
     return <></>;
@@ -61,6 +66,10 @@ export default function IndexingUpdates({
               <td style={{ textAlign: "center" }}>
                 {accountFetched ? "✅" : "❌"}
               </td>
+            </tr>
+            <tr>
+              <td>Signatures Fetched</td>
+              <td style={{ textAlign: "center" }}>{signaturesIndexed}</td>
             </tr>
             <tr>
               <td>Transactions Fetched</td>
