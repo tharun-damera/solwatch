@@ -7,6 +7,7 @@ use mongodb::error::Error as MongoError;
 use serde_json::Error as SerdeJsonError;
 use solana_client::client_error::ClientError;
 use solana_sdk::{pubkey::ParsePubkeyError, signature::ParseSignatureError};
+use tracing::{Level, event, instrument};
 
 // Create an AppError using thiserror that handles almost all errors
 #[derive(Error, Debug)]
@@ -14,7 +15,7 @@ pub enum AppError {
     #[error("Bad Request - {0}")]
     BadRequestError(String),
 
-    #[error("Not Found - {0}")]
+    #[error("{0} Not Found")]
     NotFoundError(String),
 
     #[error("Internal Error - {0}")]
@@ -35,6 +36,7 @@ struct ErrorResponse {
 
 // Send appropriate state code and the error message in the response when an error occurs in a handler
 impl IntoResponse for AppError {
+    #[instrument(skip_all)]
     fn into_response(self) -> axum::response::Response {
         let (status_code, message) = match self {
             AppError::BadRequestError(msg) => (StatusCode::BAD_REQUEST, msg),
@@ -43,8 +45,9 @@ impl IntoResponse for AppError {
             AppError::DatabaseError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::SolanaError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
-        let body = Json(ErrorResponse { error: message });
+        event! {Level::ERROR, ?message};
 
+        let body = Json(ErrorResponse { error: message });
         (status_code, body).into_response()
     }
 }
