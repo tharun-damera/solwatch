@@ -11,7 +11,7 @@ use futures::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::instrument;
+use tracing::{Level, event, instrument};
 
 use crate::{
     AppState,
@@ -88,6 +88,7 @@ pub async fn get_account_data(
     let state = state.clone();
 
     if let Some(account) = get_account(&state.db, &address).await? {
+        event!(Level::INFO, ?account);
         Ok(Json(account))
     } else {
         Err(AppError::NotFoundError("Account Not Found!".to_string()))
@@ -110,6 +111,7 @@ pub async fn transaction_signatures(
 
     let txns =
         get_transaction_signatures(&state.db, address, pagination.skip, pagination.limit).await?;
+    event!(Level::INFO, ?txns);
 
     Ok(Json(txns))
 }
@@ -123,6 +125,7 @@ pub async fn transactions(
     let state = state.clone();
 
     let txns = get_transactions(&state.db, address, pagination.skip, pagination.limit).await?;
+    event!(Level::INFO, ?txns);
 
     Ok(Json(txns))
 }
@@ -135,6 +138,7 @@ pub async fn transaction_from_signature(
     let state = state.clone();
 
     if let Some(txn) = get_transaction(&state.db, address, signature).await? {
+        event!(Level::INFO, ?txn);
         Ok(Json(txn))
     } else {
         Err(AppError::NotFoundError(

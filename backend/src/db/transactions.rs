@@ -1,6 +1,5 @@
 use futures::stream::TryStreamExt;
 use mongodb::{Database, bson::doc};
-use tracing::{Level, event};
 
 use crate::error::AppError;
 use crate::models::{Transaction, TransactionSignature};
@@ -12,22 +11,16 @@ pub async fn insert_transactions_signatures(
     db: &Database,
     signatures: &[TransactionSignature],
 ) -> Result<(), AppError> {
-    let inserted = db
-        .collection::<TransactionSignature>(SIGNATURE_COLLECTION)
+    db.collection::<TransactionSignature>(SIGNATURE_COLLECTION)
         .insert_many(signatures)
         .await?;
-    event!(Level::INFO, ?inserted);
-
     Ok(())
 }
 
 pub async fn insert_transactions(db: &Database, txns: &[Transaction]) -> Result<(), AppError> {
-    let inserted = db
-        .collection::<Transaction>(TRANSACTION_COLLECTION)
+    db.collection::<Transaction>(TRANSACTION_COLLECTION)
         .insert_many(txns)
         .await?;
-    event!(Level::INFO, ?inserted);
-
     Ok(())
 }
 
@@ -46,7 +39,6 @@ pub async fn get_transaction_signatures(
         .await?
         .try_collect()
         .await?;
-    event!(Level::INFO, ?signatures);
 
     Ok(signatures)
 }
@@ -66,7 +58,6 @@ pub async fn get_transactions(
         .await?
         .try_collect()
         .await?;
-    event!(Level::INFO, ?signatures);
 
     Ok(signatures)
 }
