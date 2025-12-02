@@ -11,7 +11,7 @@ use crate::{
     AppState,
     db::{
         accounts::{check_account_exists, insert_account},
-        transactions::{insert_transactions, insert_transactions_signatures},
+        transactions::{get_latest_signature, insert_transactions, insert_transactions_signatures},
     },
     error::AppError,
     message::SyncStatus,
@@ -85,7 +85,13 @@ pub async fn indexer(
     insert_account(&state.db, &account).await?;
 
     // Send the account data to the channel
-    send_sync_message(&sender, SyncStatus::AccountData { data: account }).await;
+    send_sync_message(
+        &sender,
+        SyncStatus::AccountData {
+            data: serde_json::to_string(&account)?,
+        },
+    )
+    .await;
 
     // Get only the latest 20 transaction signatures
     let signatures = state
@@ -173,12 +179,13 @@ pub async fn indexer(
         txns.len()
     );
     let next_signature = signatures.last().unwrap().signature.clone();
-    continue_indexing(
+    continue_sync(
         state,
         sender,
         address.clone(),
         public_key,
-        next_signature,
+        Some(Signature::from_str(&next_signature)?),
+        None,
         signatures.len(),
         txns.len(),
     )
@@ -188,23 +195,20 @@ pub async fn indexer(
 }
 
 #[instrument(skip_all)]
-async fn continue_indexing(
+async fn continue_sync(
     state: AppState,
     sender: mpsc::Sender<SyncStatus>,
     address: String,
     public_key: Pubkey,
-    next_signature: String,
+    mut before_signature: Option<Signature>,
+    until_signature: Option<Signature>,
     fetched_signatures: usize,
     fetched_transactions: usize,
 ) -> Result<(), AppError> {
-    event!(Level::INFO, "Fetching the rest of the transactions");
-
     let mut total_signs = fetched_signatures;
     let mut total_txns = fetched_transactions;
     let mut batch = 1;
     const BATCH_SIZE: usize = 10;
-
-    let mut before_signature = next_signature;
 
     loop {
         // Get the next batch transaction signatures
@@ -213,8 +217,8 @@ async fn continue_indexing(
             .get_signatures_for_address_with_config(
                 &public_key,
                 GetConfirmedSignaturesForAddress2Config {
-                    before: Some(Signature::from_str(&before_signature)?),
-                    until: None,
+                    before: before_signature,
+                    until: until_signature,
                     limit: Some(BATCH_SIZE),
                     commitment: None,
                 },
@@ -225,6 +229,9 @@ async fn continue_indexing(
             event!(Level::INFO, "No more transactions found");
             break;
         }
+        before_signature = Some(Signature::from_str(
+            &signatures.last().unwrap().signature.clone(),
+        )?);
 
         let mut txn_signs: Vec<TransactionSignature> = vec![];
 
@@ -299,8 +306,6 @@ async fn continue_indexing(
             txns.len()
         );
 
-        before_signature = signatures.last().unwrap().signature.clone();
-
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
 
@@ -308,6 +313,40 @@ async fn continue_indexing(
 
     // Send the completed indexing message to the channel
     send_sync_message(&sender, SyncStatus::Completed).await;
+
+    Ok(())
+}
+
+pub async fn refresher(
+    state: AppState,
+    sender: mpsc::Sender<SyncStatus>,
+    address: String,
+) -> Result<(), AppError> {
+    // Convert the address str to Address struct instance of Solana account
+    let public_key = Pubkey::from_str(&address)?;
+
+    // You can only refresh an indexed account
+    if !check_account_exists(&state.db, &address).await {
+        return Err(AppError::BadRequestError(
+            "Account is not indexed".to_string(),
+        ));
+    }
+
+    // Get the latest signature to continue the
+    let latest_signature = get_latest_signature(&state.db, address.clone()).await?;
+    event!(Level::INFO, ?latest_signature);
+
+    continue_sync(
+        state,
+        sender,
+        address,
+        public_key,
+        None,
+        Some(Signature::from_str(&latest_signature)?),
+        0,
+        0,
+    )
+    .await?;
 
     Ok(())
 }

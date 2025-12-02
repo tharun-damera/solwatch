@@ -46,6 +46,7 @@ pub fn create_router(state: AppState) -> Router {
             "/api/accounts/{address}/transactions/{signature}",
             get(transaction_from_signature),
         )
+        .route("/api/accounts/{address}/refresh/sse", get(refresh_sse))
         // Application state
         .with_state(state)
         // Add the layer / middleware at the end

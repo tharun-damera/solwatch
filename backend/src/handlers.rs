@@ -24,41 +24,6 @@ use crate::{
     solana,
 };
 
-pub async fn indexer_sse(
-    State(state): State<AppState>,
-    Path(address): Path<String>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let state = state.clone();
-
-    let (sender, receiver) = mpsc::channel(10);
-    tokio::spawn(async move {
-        if let Err(e) = solana::indexer(state, sender.clone(), address).await {
-            solana::send_error_message(sender, e).await;
-        }
-    });
-
-    let stream = ReceiverStream::new(receiver).map(|msg| {
-        let event = match msg {
-            SyncStatus::Started => Event::default().event("indexing-started"),
-            SyncStatus::AccountData { data } => Event::default()
-                .event("account-fetched")
-                .data(serde_json::to_string(&data).unwrap()),
-            SyncStatus::TransactionSignatures { fetched } => Event::default()
-                .event("signatures-fetched")
-                .data(fetched.to_string()),
-            SyncStatus::TransactionDetails { fetched } => Event::default()
-                .event("transactions-fetched")
-                .data(fetched.to_string()),
-            SyncStatus::Error { message } => Event::default().event("error").data(message),
-            SyncStatus::Completed => Event::default().event("close"),
-        };
-
-        Ok(event)
-    });
-
-    Sse::new(stream).keep_alive(KeepAlive::default())
-}
-
 #[derive(Serialize)]
 struct AccountStatus {
     indexed: bool,
@@ -78,6 +43,62 @@ pub async fn get_account_status(
     } else {
         Err(AppError::NotFoundError("Account Not found".to_string()))
     }
+}
+
+fn sync_message_to_event(msg: SyncStatus) -> Event {
+    match msg {
+        SyncStatus::Started => Event::default().event("started"),
+        SyncStatus::AccountData { data } => Event::default().event("account-data").data(data),
+        SyncStatus::TransactionSignatures { fetched } => Event::default()
+            .event("signatures-fetched")
+            .data(fetched.to_string()),
+        SyncStatus::TransactionDetails { fetched } => Event::default()
+            .event("transactions-fetched")
+            .data(fetched.to_string()),
+        SyncStatus::Error { message } => Event::default().event("error").data(message),
+        SyncStatus::Completed => Event::default().event("close"),
+    }
+}
+
+// Indexer SSE API is called when the account is not found in DB (not indexed)
+// it is used to fetch the account and transaction data via RPC and insert them in DB
+pub async fn indexer_sse(
+    State(state): State<AppState>,
+    Path(address): Path<String>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let state = state.clone();
+
+    let (sender, receiver) = mpsc::channel(10);
+    tokio::spawn(async move {
+        if let Err(e) = solana::indexer(state, sender.clone(), address).await {
+            solana::send_error_message(sender, e).await;
+        }
+    });
+
+    let stream = ReceiverStream::new(receiver).map(|msg| Ok(sync_message_to_event(msg)));
+
+    Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+// Refresh SSE API is called to get the latest account and transaction data.
+// Basically when all data related to the account in DB is stale and no longer fresh
+// and needs to match the on-chain data we call this API
+pub async fn refresh_sse(
+    State(state): State<AppState>,
+    Path(address): Path<String>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let state = state.clone();
+
+    let (sender, receiver) = mpsc::channel(10);
+    tokio::spawn(async {
+        if let Err(e) = solana::refresher(state, sender.clone(), address).await {
+            solana::send_error_message(sender, e).await;
+        }
+    });
+
+    let stream = ReceiverStream::new(receiver.into()).map(|msg| Ok(sync_message_to_event(msg)));
+
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
 #[instrument(skip(state))]
