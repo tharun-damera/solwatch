@@ -1,4 +1,4 @@
-use bson::DateTime;
+use mongodb::bson::DateTime as BsonDateTime;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -11,8 +11,18 @@ pub struct Account {
     pub executable: bool,
     pub data_length: i64,
     pub rent_epoch: i64,
-    pub indexed_at: DateTime,
-    pub last_updated_at: DateTime,
+    pub indexed_at: BsonDateTime,
+    pub last_updated_at: BsonDateTime,
+}
+
+#[derive(Debug)]
+pub struct UpdateAccount {
+    pub lamports: i64,
+    pub owner: String,
+    pub executable: bool,
+    pub data_length: i64,
+    pub rent_epoch: i64,
+    pub last_updated_at: BsonDateTime,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -23,7 +33,7 @@ pub struct TransactionSignature {
     pub slot: i64,
     pub block_time: Option<i64>,
     pub confirmation_status: String,
-    pub indexed_at: DateTime,
+    pub indexed_at: BsonDateTime,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,5 +44,5 @@ pub struct Transaction {
     pub slot: i64,
     pub block_time: Option<i64>,
     pub transaction: Value,
-    pub indexed_at: DateTime,
+    pub indexed_at: BsonDateTime,
 }

@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use chrono::Utc;
+use mongodb::bson::DateTime as BsonDateTime;
 use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use solana_transaction_status::UiTransactionEncoding;
@@ -10,13 +11,17 @@ use tracing::{Level, event, instrument};
 use crate::{
     AppState,
     db::{
-        accounts::{check_account_exists, insert_account},
+        accounts::{check_account_exists, insert_account, update_account},
         transactions::{get_latest_signature, insert_transactions, insert_transactions_signatures},
     },
     error::AppError,
     message::SyncStatus,
-    models::{Account, Transaction, TransactionSignature},
+    models::{Account, Transaction, TransactionSignature, UpdateAccount},
 };
+
+fn bson_current_time() -> BsonDateTime {
+    BsonDateTime::from_millis(Utc::now().timestamp_millis())
+}
 
 #[instrument(skip(sender, error))]
 pub async fn send_error_message(sender: mpsc::Sender<SyncStatus>, error: AppError) {
@@ -77,8 +82,8 @@ pub async fn indexer(
         executable: account.executable,
         data_length: account.data.len() as i64,
         rent_epoch: account.rent_epoch as i64,
-        indexed_at: Utc::now().into(),
-        last_updated_at: Utc::now().into(),
+        indexed_at: bson_current_time(),
+        last_updated_at: bson_current_time(),
     };
 
     // Insert the account data into DB
@@ -125,7 +130,7 @@ pub async fn indexer(
             confirmation_status: serde_json::from_str(&serde_json::to_string(
                 &sign.confirmation_status,
             )?)?,
-            indexed_at: Utc::now().into(),
+            indexed_at: bson_current_time(),
         });
     }
 
@@ -156,7 +161,7 @@ pub async fn indexer(
             slot: txn.slot as i64,
             block_time: txn.block_time,
             transaction: serde_json::to_value(txn.transaction)?,
-            indexed_at: Utc::now().into(),
+            indexed_at: bson_current_time(),
         });
     }
 
@@ -245,7 +250,7 @@ async fn continue_sync(
                 confirmation_status: serde_json::from_str(&serde_json::to_string(
                     &sign.confirmation_status,
                 )?)?,
-                indexed_at: Utc::now().into(),
+                indexed_at: bson_current_time(),
             });
         }
 
@@ -279,7 +284,7 @@ async fn continue_sync(
                 slot: txn.slot as i64,
                 block_time: txn.block_time,
                 transaction: serde_json::to_value(txn.transaction)?,
-                indexed_at: Utc::now().into(),
+                indexed_at: bson_current_time(),
             });
         }
 
@@ -332,7 +337,35 @@ pub async fn refresher(
         ));
     }
 
-    // Get the latest signature to continue the
+    // Get the Solana account data of the address
+    let account = state.rpc.get_account(&public_key).await?;
+    event!(Level::INFO, ?account);
+
+    // Update the account data in DB with the latest data
+    let updated = update_account(
+        &state.db,
+        &address,
+        UpdateAccount {
+            lamports: account.lamports as i64,
+            owner: account.owner.to_string(),
+            executable: account.executable,
+            data_length: account.data.len() as i64,
+            rent_epoch: account.rent_epoch as i64,
+            last_updated_at: bson_current_time(),
+        },
+    )
+    .await?;
+
+    // Send the updated account data to the channel
+    send_sync_message(
+        &sender,
+        SyncStatus::AccountData {
+            data: serde_json::to_string(&updated)?,
+        },
+    )
+    .await;
+
+    // Get the latest signature to continue the sync/refresh
     let latest_signature = get_latest_signature(&state.db, address.clone()).await?;
     event!(Level::INFO, ?latest_signature);
 
