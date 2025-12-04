@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 export default function SearchBox({ loading, setAddress, onSearch }) {
-  let [addr, setAddr] = useState(null);
+  let [addr, setAddr] = useState("");
 
   function onSubmit(e) {
     e.preventDefault();
