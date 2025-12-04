@@ -7,6 +7,7 @@ export default function TransactionHistory({
   address,
   account,
   setDetailedTxn,
+  setError,
 }) {
   const LIMIT = 20;
 
@@ -34,6 +35,7 @@ export default function TransactionHistory({
         if (newTxns.length < LIMIT) setHasMore(false);
       }
     } catch (err) {
+      setError("Something went wrong");
       console.error("Error fetching transactions:", err);
     }
 

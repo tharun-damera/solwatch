@@ -6,34 +6,47 @@ import SearchBox from "./components/SearchBox";
 import Account from "./components/Account";
 
 import TransactionHistory from "./components/TransactionHistory";
-import { searchAddress } from "./utils/searchData";
-import IndexingUpdates from "./components/IndexingUpdates";
+import IndexerStats from "./components/IndexerStats";
 import Transaction from "./components/Transaction";
 
+import { accountIndexStatus } from "./api/api";
+
 export default function App() {
-  let [address, setAddress] = useState("");
   let [loading, setLoading] = useState(false);
-  let [account, setAccount] = useState(null);
   let [error, setError] = useState(null);
-  let [indexed, setIndexed] = useState(true);
-  let [signaturesIndexed, setSignaturesIndexed] = useState(0);
+
+  let [address, setAddress] = useState("");
+  let [indexed, setIndexed] = useState(null);
+  let [account, setAccount] = useState(null);
   let [txnsIndexed, setTxnsIndexed] = useState(0);
   let [detailedTxn, setDetailedTxn] = useState(null);
 
   async function handleSearch(addr) {
     setError(null);
-    setIndexed(true);
+    setIndexed(null);
     setLoading(true);
-    await searchAddress(addr, setAddress, setIndexed, setAccount);
+
+    setAddress(addr);
+    window.history.replaceState({}, "", `?address=${addr}`);
+
+    let result = await accountIndexStatus(addr);
+    if (result.indexed) {
+      setIndexed(true);
+    } else {
+      setIndexed(false);
+    }
     setLoading(false);
   }
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlAddress = params.get("address");
-    if (urlAddress) {
-      searchAddress(urlAddress, setAddress, setIndexed, setAccount);
+    function pageRefresh() {
+      const params = new URLSearchParams(window.location.search);
+      const urlAddress = params.get("address");
+      if (urlAddress) {
+        handleSearch(urlAddress);
+      }
     }
+    pageRefresh();
   }, []);
 
   return (
@@ -48,35 +61,33 @@ export default function App() {
         {error && <div className="error">{error}</div>}
         <div className="horizontal-line"></div>
 
-        {!loading && !account && <EmptyState />}
+        {indexed == null && <EmptyState />}
 
-        {!indexed && !error && (
-          <>
-            <IndexingUpdates
-              address={address}
-              signaturesIndexed={signaturesIndexed}
-              txnsIndexed={txnsIndexed}
-              setAccount={setAccount}
-              setSignaturesIndexed={setSignaturesIndexed}
-              setTxnsIndexed={setTxnsIndexed}
-              setError={setError}
-            />
-            <div className="horizontal-line"></div>
-          </>
+        {indexed != null && (
+          <IndexerStats
+            address={address}
+            indexed={indexed}
+            setAccount={setAccount}
+            setTxnsIndexed={setTxnsIndexed}
+            setError={setError}
+          />
         )}
 
-        {account && (
-          <>
-            <Account data={account} />
-            <div className="horizontal-line"></div>
-          </>
+        {indexed && (
+          <Account
+            address={address}
+            account={account}
+            setAccount={setAccount}
+            setError={setError}
+          />
         )}
 
-        {account && (indexed || signaturesIndexed > 0) && (
+        {account && (indexed || txnsIndexed > 0) && (
           <TransactionHistory
             address={address}
             account={account}
             setDetailedTxn={setDetailedTxn}
+            setError={setError}
           />
         )}
 
@@ -84,6 +95,8 @@ export default function App() {
           <Transaction
             address={address}
             signature={detailedTxn}
+            error={error}
+            setError={setError}
             onClose={() => setDetailedTxn(null)}
           />
         )}

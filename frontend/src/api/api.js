@@ -8,28 +8,9 @@ export async function accountIndexStatus(address) {
   return resp;
 }
 
-export async function accountData(address) {
-  let res = await fetch(`${BASE_URL}/api/accounts/${address}`, {
-    method: "GET",
-  });
-  let resp = await res.json();
-  return resp;
-}
-
 export async function transactionHistory(address, skip, limit) {
   let res = await fetch(
     `${BASE_URL}/api/accounts/${address}/signatures?skip=${skip}&limit=${limit}`,
-    {
-      method: "GET",
-    }
-  );
-  let resp = await res.json();
-  return resp;
-}
-
-export async function transaction(address, signature) {
-  let res = await fetch(
-    `${BASE_URL}/api/accounts/${address}/transactions/${signature}`,
     {
       method: "GET",
     }
