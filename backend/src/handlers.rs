@@ -48,14 +48,14 @@ pub async fn get_account_status(
 fn sync_message_to_event(msg: SyncStatus) -> Event {
     match msg {
         SyncStatus::Started => Event::default().event("started"),
-        SyncStatus::AccountData { data } => Event::default().event("account-data").data(data),
-        SyncStatus::TransactionSignatures { fetched } => Event::default()
-            .event("signatures-fetched")
-            .data(fetched.to_string()),
-        SyncStatus::TransactionDetails { fetched } => Event::default()
-            .event("transactions-fetched")
-            .data(fetched.to_string()),
-        SyncStatus::Error { message } => Event::default().event("error").data(message),
+        SyncStatus::AccountData(data) => Event::default().event("account-data").data(data),
+        SyncStatus::TransactionSignatures(data) => {
+            Event::default().event("signatures-fetched").data(data)
+        }
+        SyncStatus::TransactionDetails(data) => {
+            Event::default().event("transactions-fetched").data(data)
+        }
+        SyncStatus::Error(message) => Event::default().event("error").data(message),
         SyncStatus::Completed => Event::default().event("close"),
     }
 }

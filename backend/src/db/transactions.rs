@@ -96,3 +96,25 @@ pub async fn get_latest_signature(db: &Database, address: String) -> Result<Stri
         .map(|r| Ok(r._id))
         .unwrap_or_else(|| Err(AppError::NotFoundError("Latest Signature".to_string())))
 }
+
+pub async fn get_signatures_count(db: &Database, address: &str) -> Result<u64, AppError> {
+    let count = db
+        .collection::<TransactionSignature>(SIGNATURE_COLLECTION)
+        .count_documents(doc! {
+            "account_address": address
+        })
+        .await?;
+
+    Ok(count)
+}
+
+pub async fn get_transactions_count(db: &Database, address: &str) -> Result<u64, AppError> {
+    let count = db
+        .collection::<TransactionSignature>(SIGNATURE_COLLECTION)
+        .count_documents(doc! {
+            "account_address": address
+        })
+        .await?;
+
+    Ok(count)
+}

@@ -12,7 +12,10 @@ use crate::{
     AppState,
     db::{
         accounts::{check_account_exists, insert_account, update_account},
-        transactions::{get_latest_signature, insert_transactions, insert_transactions_signatures},
+        transactions::{
+            get_latest_signature, get_signatures_count, get_transactions_count,
+            insert_transactions, insert_transactions_signatures,
+        },
     },
     error::AppError,
     message::SyncStatus,
@@ -23,17 +26,18 @@ fn bson_current_time() -> BsonDateTime {
     BsonDateTime::from_millis(Utc::now().timestamp_millis())
 }
 
+#[derive(Debug, serde::Serialize)]
+struct TotalFetch {
+    total: u64,
+    fetched: u64,
+}
+
 #[instrument(skip(sender, error))]
 pub async fn send_error_message(sender: mpsc::Sender<SyncStatus>, error: AppError) {
     event!(Level::ERROR, "Error occurred: {error}");
 
     // Send the error message to the client
-    if let Err(err) = sender
-        .send(SyncStatus::Error {
-            message: error.to_string(),
-        })
-        .await
-    {
+    if let Err(err) = sender.send(SyncStatus::Error(error.to_string())).await {
         event!(
             Level::ERROR,
             ?err,
@@ -92,9 +96,7 @@ pub async fn indexer(
     // Send the account data to the channel
     send_sync_message(
         &sender,
-        SyncStatus::AccountData {
-            data: serde_json::to_string(&account)?,
-        },
+        SyncStatus::AccountData(serde_json::to_string(&account)?),
     )
     .await;
 
@@ -137,12 +139,16 @@ pub async fn indexer(
     // Insert the transaction signatures into DB
     insert_transactions_signatures(&state.db, &txn_signs).await?;
 
+    // Get the total transaction signatures count of the account in DB
+    let sign_count = get_signatures_count(&state.db, &address).await?;
+
     // Send the transaction signatures data status to the channel
     send_sync_message(
         &sender,
-        SyncStatus::TransactionSignatures {
+        SyncStatus::TransactionSignatures(serde_json::to_string(&TotalFetch {
+            total: sign_count,
             fetched: txn_signs.len() as u64,
-        },
+        })?),
     )
     .await;
 
@@ -168,12 +174,16 @@ pub async fn indexer(
     // Insert the transactions into DB
     insert_transactions(&state.db, &txns).await?;
 
+    // Get the total transactions count of the account in DB
+    let txn_count = get_transactions_count(&state.db, &address).await?;
+
     // Send the transactions data status to the channel
     send_sync_message(
         &sender,
-        SyncStatus::TransactionDetails {
+        SyncStatus::TransactionDetails(serde_json::to_string(&TotalFetch {
+            total: txn_count,
             fetched: txns.len() as u64,
-        },
+        })?),
     )
     .await;
 
@@ -259,12 +269,16 @@ async fn continue_sync(
 
         total_signs += signatures.len();
 
+        // Get the total transaction signatures count of the account in DB
+        let sign_count = get_signatures_count(&state.db, &address).await?;
+
         // Send the transaction signatures data status to the channel
         send_sync_message(
             &sender,
-            SyncStatus::TransactionSignatures {
+            SyncStatus::TransactionSignatures(serde_json::to_string(&TotalFetch {
+                total: sign_count,
                 fetched: total_signs as u64,
-            },
+            })?),
         )
         .await;
 
@@ -293,12 +307,16 @@ async fn continue_sync(
 
         total_txns += txns.len();
 
+        // Get the total transactions count of the account in DB
+        let txn_count = get_transactions_count(&state.db, &address).await?;
+
         // Send the transaction signatures data status to the channel
         send_sync_message(
             &sender,
-            SyncStatus::TransactionDetails {
+            SyncStatus::TransactionDetails(serde_json::to_string(&TotalFetch {
+                total: txn_count,
                 fetched: total_txns as u64,
-            },
+            })?),
         )
         .await;
 
@@ -359,9 +377,7 @@ pub async fn refresher(
     // Send the updated account data to the channel
     send_sync_message(
         &sender,
-        SyncStatus::AccountData {
-            data: serde_json::to_string(&updated)?,
-        },
+        SyncStatus::AccountData(serde_json::to_string(&updated)?),
     )
     .await;
 
