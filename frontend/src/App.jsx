@@ -8,7 +8,7 @@ import Account from "./components/Account";
 import TransactionHistory from "./components/TransactionHistory";
 import Transaction from "./components/Transaction";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+import { BASE_URL } from "./utils/env";
 
 export default function App() {
   const [loading, setLoading] = useState(false);

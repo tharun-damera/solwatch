@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardBody } from "./Card";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+import { BASE_URL } from "../utils/env";
 
 export default function IndexerStats({
   address,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 import { Card, CardHeader, CardBody, CardFooter } from "./Card";
-import { transactionHistory } from "../api/api";
+import { BASE_URL } from "../utils/env";
 
 export default function TransactionHistory({
   address,
@@ -20,12 +20,15 @@ export default function TransactionHistory({
 
   async function fetchPage(skipParam) {
     if (loading) return;
-
     setLoading(true);
 
     try {
-      const newTxns = await transactionHistory(address, skipParam, LIMIT);
+      const res = await fetch(
+        `${BASE_URL}/api/accounts/${address}/signatures?skip=${skipParam}&limit=${LIMIT}`
+      );
+      if (!res.ok) throw new Error("Something went wrong");
 
+      const newTxns = await res.json();
       if (newTxns.length === 0) {
         setHasMore(false);
       } else {
@@ -38,7 +41,6 @@ export default function TransactionHistory({
       setError("Something went wrong");
       console.error("Error fetching transactions:", err);
     }
-
     setLoading(false);
   }
 
