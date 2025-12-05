@@ -18,14 +18,14 @@ export default function TransactionDetails({
       setError(null);
       setLoading(true);
       try {
-        let res = await fetch(
+        const res = await fetch(
           `${BASE_URL}/api/accounts/${address}/transactions/${signature}`,
           {
             method: "GET",
           }
         );
         if (!res.ok) throw new Error("Something went wrong");
-        let data = await res.json();
+        const data = await res.json();
         setTxn(data);
       } catch (e) {
         setError(e.message);

@@ -7,10 +7,11 @@ export default function Account({ address, account, setAccount, setError }) {
   useEffect(() => {
     async function accountData(address) {
       try {
-        let res = await fetch(`${BASE_URL}/api/accounts/${address}`, {
+        const res = await fetch(`${BASE_URL}/api/accounts/${address}`, {
           method: "GET",
         });
-        let data = await res.json();
+        if (!res.ok) throw new Error("Something went wrong");
+        const data = await res.json();
         setAccount(data);
       } catch (err) {
         setError(err.message);
