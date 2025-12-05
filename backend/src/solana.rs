@@ -223,7 +223,7 @@ async fn continue_sync(
     let mut total_signs = fetched_signatures;
     let mut total_txns = fetched_transactions;
     let mut batch = 1;
-    const BATCH_SIZE: usize = 10;
+    const BATCH_SIZE: usize = 1000;
 
     loop {
         // Get the next batch transaction signatures

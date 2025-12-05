@@ -110,7 +110,7 @@ pub async fn get_signatures_count(db: &Database, address: &str) -> Result<u64, A
 
 pub async fn get_transactions_count(db: &Database, address: &str) -> Result<u64, AppError> {
     let count = db
-        .collection::<TransactionSignature>(SIGNATURE_COLLECTION)
+        .collection::<Transaction>(TRANSACTION_COLLECTION)
         .count_documents(doc! {
             "account_address": address
         })
