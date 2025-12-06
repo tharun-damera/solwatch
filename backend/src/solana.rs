@@ -67,7 +67,7 @@ pub async fn indexer(
 
     // Before indexing the account, check if it is already indexed
     if check_account_exists(&state.db, &address).await {
-        return Err(AppError::BadRequestError(
+        return Err(AppError::BadRequest(
             "Account is already indexed".to_string(),
         ));
     }
@@ -115,7 +115,7 @@ pub async fn indexer(
         .await?;
 
     if signatures.is_empty() {
-        return Err(AppError::SolanaError(
+        return Err(AppError::Solana(
             "No transactions found for this address".to_string(),
         ));
     }
@@ -350,7 +350,7 @@ pub async fn refresher(
 
     // You can only refresh an indexed account
     if !check_account_exists(&state.db, &address).await {
-        return Err(AppError::BadRequestError(
+        return Err(AppError::BadRequest(
             "Account is not indexed".to_string(),
         ));
     }

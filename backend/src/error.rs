@@ -14,19 +14,19 @@ use tracing::{Level, event, instrument};
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("Bad Request - {0}")]
-    BadRequestError(String),
+    BadRequest(String),
 
     #[error("{0} Not Found")]
-    NotFoundError(String),
+    NotFound(String),
 
     #[error("Internal Error - {0}")]
-    InternalError(String),
+    Internal(String),
 
     #[error("Database Error - {0}")]
-    DatabaseError(String),
+    Database(String),
 
     #[error("Solana Error - {0}")]
-    SolanaError(String),
+    Solana(String),
 }
 
 // Custom Error Response
@@ -40,11 +40,11 @@ impl IntoResponse for AppError {
     #[instrument(skip_all)]
     fn into_response(self) -> axum::response::Response {
         let (status_code, message) = match self {
-            AppError::BadRequestError(msg) => (StatusCode::BAD_REQUEST, msg),
-            AppError::NotFoundError(msg) => (StatusCode::NOT_FOUND, msg),
-            AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            AppError::DatabaseError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            AppError::SolanaError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::Database(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::Solana(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
         event! {Level::ERROR, ?message};
 
@@ -53,58 +53,58 @@ impl IntoResponse for AppError {
     }
 }
 
-// Map the MongoError to the DatabaseError variant of the AppError
+// Map the MongoError to the Database variant of the AppError
 impl From<MongoError> for AppError {
     fn from(e: MongoError) -> Self {
-        AppError::DatabaseError(e.to_string())
+        AppError::Database(e.to_string())
     }
 }
 
-// Map the MongoBsonDecodeError to the DatabaseError variant of the AppError
+// Map the MongoBsonDecodeError to the Database variant of the AppError
 impl From<MongoBsonDecodeError> for AppError {
     fn from(e: MongoBsonDecodeError) -> Self {
-        AppError::DatabaseError(e.to_string())
+        AppError::Database(e.to_string())
     }
 }
 
-// Map the std::io::Error to the InternalError variant of the AppError
+// Map the std::io::Error to the Internal variant of the AppError
 impl From<IoError> for AppError {
     fn from(e: IoError) -> Self {
-        AppError::InternalError(e.to_string())
+        AppError::Internal(e.to_string())
     }
 }
 
-// Map the std::env::VarError to the InternalError variant of the AppError
+// Map the std::env::VarError to the Internal variant of the AppError
 impl From<VarError> for AppError {
     fn from(e: VarError) -> Self {
-        AppError::InternalError(e.to_string())
+        AppError::Internal(e.to_string())
     }
 }
 
-// Map the serde_json::Error to the InternalError variant of the AppError
+// Map the serde_json::Error to the Internal variant of the AppError
 impl From<SerdeJsonError> for AppError {
     fn from(e: SerdeJsonError) -> Self {
-        AppError::InternalError(e.to_string())
+        AppError::Internal(e.to_string())
     }
 }
 
-// Map the Solana ParsePubkeyError to the SolanaError variant of the AppError
+// Map the Solana ParsePubkeyError to the Solana variant of the AppError
 impl From<ParsePubkeyError> for AppError {
     fn from(_: ParsePubkeyError) -> Self {
-        AppError::SolanaError("Invalid Address".to_string())
+        AppError::Solana("Invalid Address".to_string())
     }
 }
 
-// Map the Solana ClientError to the SolanaError variant of the AppError
+// Map the Solana ClientError to the Solana variant of the AppError
 impl From<ClientError> for AppError {
     fn from(e: ClientError) -> Self {
-        AppError::SolanaError(e.to_string())
+        AppError::Solana(e.to_string())
     }
 }
 
-// Map the Solana ParseSignatureError to SolanaError
+// Map the Solana ParseSignatureError to Solana
 impl From<ParseSignatureError> for AppError {
     fn from(e: ParseSignatureError) -> Self {
-        AppError::SolanaError(e.to_string())
+        AppError::Solana(e.to_string())
     }
 }

@@ -94,7 +94,7 @@ pub async fn get_latest_signature(db: &Database, address: String) -> Result<Stri
 
     latest_record
         .map(|r| Ok(r._id))
-        .unwrap_or_else(|| Err(AppError::NotFoundError("Latest Signature".to_string())))
+        .unwrap_or_else(|| Err(AppError::NotFound("Latest Signature".to_string())))
 }
 
 pub async fn get_signatures_count(db: &Database, address: &str) -> Result<u64, AppError> {

@@ -41,7 +41,7 @@ pub async fn get_account_status(
     if indexed {
         Ok(Json(AccountStatus { indexed }))
     } else {
-        Err(AppError::NotFoundError("Account Not Found".to_string()))
+        Err(AppError::NotFound("Account Not Found".to_string()))
     }
 }
 
@@ -96,7 +96,7 @@ pub async fn refresh_sse(
         }
     });
 
-    let stream = ReceiverStream::new(receiver.into()).map(|msg| Ok(sync_message_to_event(msg)));
+    let stream = ReceiverStream::new(receiver).map(|msg| Ok(sync_message_to_event(msg)));
 
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
@@ -112,7 +112,7 @@ pub async fn get_account_data(
         event!(Level::INFO, ?account);
         Ok(Json(account))
     } else {
-        Err(AppError::NotFoundError("Account Not Found".to_string()))
+        Err(AppError::NotFound("Account Not Found".to_string()))
     }
 }
 
@@ -162,7 +162,7 @@ pub async fn transaction_from_signature(
         event!(Level::INFO, ?txn);
         Ok(Json(txn))
     } else {
-        Err(AppError::NotFoundError("Transaction Not Found".to_string()))
+        Err(AppError::NotFound("Transaction Not Found".to_string()))
     }
 }
 

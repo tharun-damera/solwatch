@@ -62,8 +62,7 @@ pub async fn update_account(
     // Find the account in DB
     // If it exists update it and return the updated document
     // Else return Account not found error
-    let updated = db
-        .collection::<Account>(ACCOUNTS)
+    db.collection::<Account>(ACCOUNTS)
         .find_one_and_update(
             doc! {"_id": address},
             doc! {"$set": {
@@ -77,9 +76,7 @@ pub async fn update_account(
         )
         .with_options(options)
         .await?
-        .ok_or_else(|| AppError::NotFoundError("Account Not Found".into()));
-
-    updated
+        .ok_or_else(|| AppError::NotFound("Account Not Found".into()))
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -159,8 +156,8 @@ pub async fn get_indexer_stats(db: &Database, address: &str) -> Result<IndexerSt
     if let Some(doc) = docs.into_iter().next() {
         let decoded: IndexerStats = from_document(doc)?;
         event!(Level::INFO, ?decoded);
-        return Ok(decoded);
+        Ok(decoded)
     } else {
-        Err(AppError::NotFoundError("Account Not Found".into()))
+        Err(AppError::NotFound("Account Not Found".into()))
     }
 }
