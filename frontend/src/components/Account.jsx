@@ -22,6 +22,8 @@ export default function Account({ address, account, setAccount, setError }) {
 
   if (!account) return <></>;
 
+  const solBalance = account.lamports / 1e9;
+
   return (
     <>
       <Card>
@@ -34,9 +36,9 @@ export default function Account({ address, account, setAccount, setError }) {
                 <td className="mono responsive-td">{account._id}</td>
               </tr>
               <tr>
-                <td>Balance (Lamports)</td>
+                <td>Balance (SOL)</td>
                 <td className="responsive-td">
-                  <strong>◎{account.lamports ?? 0}</strong>
+                  <strong>◎{solBalance ?? 0}</strong>
                 </td>
               </tr>
               <tr>
