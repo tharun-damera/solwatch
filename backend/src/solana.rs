@@ -62,7 +62,6 @@ pub async fn indexer(
     sender: mpsc::Sender<SyncStatus>,
     address: String,
 ) -> Result<(), AppError> {
-
     let mutex = state.get_address_lock(&address);
     let lock = mutex.lock().await;
     event!(Level::INFO, "Lock acquired here");
@@ -351,14 +350,16 @@ pub async fn refresher(
     sender: mpsc::Sender<SyncStatus>,
     address: String,
 ) -> Result<(), AppError> {
+    let mutex = state.get_address_lock(&address);
+    let lock = mutex.lock().await;
+    event!(Level::INFO, "Lock acquired here");
+
     // Convert the address str to Address struct instance of Solana account
     let public_key = Pubkey::from_str(&address)?;
 
     // You can only refresh an indexed account
     if !check_account_exists(&state.db, &address).await {
-        return Err(AppError::BadRequest(
-            "Account is not indexed".to_string(),
-        ));
+        return Err(AppError::BadRequest("Account is not indexed".to_string()));
     }
 
     // Get the Solana account data of the address
@@ -403,5 +404,6 @@ pub async fn refresher(
     )
     .await?;
 
+    event!(Level::INFO, "Lock: {:?} will be dropped here", lock);
     Ok(())
 }

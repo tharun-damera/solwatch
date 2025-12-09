@@ -1,6 +1,6 @@
+use dashmap::DashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use dashmap::DashMap;
 
 use mongodb::{Client, Database};
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -24,6 +24,9 @@ impl AppState {
     }
 
     pub fn get_address_lock(&self, address: &str) -> Arc<Mutex<()>> {
-        self.address_lock.entry(address.to_string()).or_insert(Arc::new(Mutex::new(()))).clone()
+        self.address_lock
+            .entry(address.to_string())
+            .or_insert(Arc::new(Mutex::new(())))
+            .clone()
     }
 }
