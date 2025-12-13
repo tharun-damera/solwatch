@@ -28,14 +28,14 @@ async fn main() -> Result<(), error::AppError> {
     // Lives as long as the main fn
     let _guard = tracer::setup_tracing();
 
-    // Setup Mongo Client and Database
-    let (client, db) = db::init().await?;
+    // Setup Mongo Database
+    let db = db::init().await?;
 
     // Connect to the Solana Devnet through RPC (Remote Procedure Call)
     let rpc = Arc::new(RpcClient::new(DEV_NET.to_string()));
 
-    // Create an AppState containing Mongo Client, Database and RpcClient
-    let state = app_state::AppState::new(client, db, rpc);
+    // Create an AppState containing Mongo Database and RpcClient
+    let state = app_state::AppState::new(db, rpc);
 
     // Create an app router for handling requests
     // that takes in the AppState to perform DB operations & RPC calls
