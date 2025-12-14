@@ -394,6 +394,17 @@ pub async fn refresher(
         return Err(AppError::BadRequest("Account is not indexed".to_string()));
     }
 
+    // Set the address indexing state to Syncing
+    update_address_indexing_state(
+        &state.db,
+        &address,
+        UpdateAddressIndexingState {
+            state: IndexingState::Syncing,
+            updated_at: bson_current_time(),
+        },
+    )
+    .await?;
+
     // Get the Solana account data of the address
     let account = state.rpc.get_account(&public_key).await?;
     event!(Level::INFO, ?account);
