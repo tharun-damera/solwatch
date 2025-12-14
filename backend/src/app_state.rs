@@ -21,11 +21,16 @@ pub struct AddressSession {
 }
 
 impl AddressSession {
+    // Store the copy of events in the past_events before sending it to the channel
+    // for streaming all the events to the late subscribers
     pub async fn emit_event(&self, event: SyncStatus) {
+        // Acquire the Writer guard of RwLock and perform the write operation inside a block
+        // to make sure the guard is dropped so the readers are not blocked forever
         {
             let mut events = self.past_events.write().await;
             events.push(event.clone());
         }
+        // Sending the events to the channel and logging on error
         if let Err(err) = self.sender.send(event) {
             error!(
                 "Error occcured while sending event to channel: {}",

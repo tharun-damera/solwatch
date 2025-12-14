@@ -82,12 +82,16 @@ pub async fn indexer_sse(
         });
     }
 
+    // Convert the past_events iterator to a stream
+    // for making sure to send all the events to the late subscribers
+    // in case they missed the live events
     let replay_stream = tokio_stream::iter({
         let events = session.past_events.read().await;
         events.clone()
     })
     .map(|event| Ok(sync_message_to_event(event)));
 
+    // Stream the live events as usual
     let live_stream = BroadcastStream::new(receiver).map(|msg_result| match msg_result {
         Ok(msg) => Ok(sync_message_to_event(msg)),
         Err(e) => {
@@ -97,6 +101,8 @@ pub async fn indexer_sse(
                 .data("client request delayed/lagged"))
         }
     });
+
+    // Combine or Chain the two streams: replay_stream and live_stream
     let stream = replay_stream.chain(live_stream);
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
@@ -134,12 +140,17 @@ pub async fn refresh_sse(
             event!(Level::INFO, "Session removed: {}", removed);
         });
     }
+
+    // Convert the past_events iterator to a stream
+    // for making sure to send all the events to the late subscribers
+    // in case they missed the live events
     let replay_stream = tokio_stream::iter({
         let events = session.past_events.read().await;
         events.clone()
     })
     .map(|event| Ok(sync_message_to_event(event)));
 
+    // Stream the live events as usual
     let live_stream = BroadcastStream::new(receiver).map(|msg_result| match msg_result {
         Ok(msg) => Ok(sync_message_to_event(msg)),
         Err(e) => {
@@ -149,6 +160,8 @@ pub async fn refresh_sse(
                 .data("client request delayed/lagged"))
         }
     });
+
+    // Combine or Chain the two streams: replay_stream and live_stream
     let stream = replay_stream.chain(live_stream);
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
