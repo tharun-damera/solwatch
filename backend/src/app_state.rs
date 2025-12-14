@@ -1,10 +1,10 @@
 use dashmap::DashMap;
 use std::sync::{Arc, atomic::AtomicBool};
-use tokio::sync::broadcast;
+use tokio::sync::{RwLock, broadcast};
 
 use mongodb::Database;
 use solana_client::nonblocking::rpc_client::RpcClient;
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::message::SyncStatus;
 
@@ -17,6 +17,22 @@ use crate::message::SyncStatus;
 pub struct AddressSession {
     pub sender: broadcast::Sender<SyncStatus>,
     pub started: AtomicBool,
+    pub past_events: RwLock<Vec<SyncStatus>>,
+}
+
+impl AddressSession {
+    pub async fn emit_event(&self, event: SyncStatus) {
+        {
+            let mut events = self.past_events.write().await;
+            events.push(event.clone());
+        }
+        if let Err(err) = self.sender.send(event) {
+            error!(
+                "Error occcured while sending event to channel: {}",
+                err.to_string()
+            );
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -47,7 +63,7 @@ impl AppState {
     // It involves adding the address into the DashMap along with the broadcast channel sender and
     // started atomic bool for handling multiple such requests
     pub fn get_or_create_session(&self, address: &str) -> Arc<AddressSession> {
-        warn!("DashMap session data: {:?}", self.session);
+        warn!("Session data: {:?}", self.session);
         self.session
             .entry(address.to_string())
             .or_insert_with(|| {
@@ -55,6 +71,7 @@ impl AppState {
                 Arc::new(AddressSession {
                     sender,
                     started: AtomicBool::new(false),
+                    past_events: RwLock::new(Vec::new()),
                 })
             })
             .clone()
@@ -63,9 +80,6 @@ impl AppState {
     // Once the indexing or refreshing is done
     // making sure to remove the address from the DashMap
     pub fn remove_session(&self, address: &str) -> bool {
-        match self.session.remove(address) {
-            Some(_) => true,
-            None => false,
-        }
+        self.session.remove(address).is_some()
     }
 }
