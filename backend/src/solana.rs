@@ -71,7 +71,7 @@ pub async fn indexer(
     .await?;
 
     event!(Level::INFO, "Begin indexing the address");
-    session.emit_event(SyncStatus::Started).await;
+    session.emit_event(SyncStatus::Indexing).await;
 
     // Get the Solana account data of the address
     let account = state.rpc.get_account(&public_key).await?;
@@ -378,6 +378,9 @@ pub async fn refresher(
         },
     )
     .await?;
+
+    event!(Level::INFO, "Begin syncing the address");
+    session.emit_event(SyncStatus::Syncing).await;
 
     // Get the Solana account data of the address
     let account = state.rpc.get_account(&public_key).await?;
