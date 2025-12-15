@@ -193,18 +193,21 @@ pub async fn indexer(
         signatures.len(),
         txns.len()
     );
-    let next_signature = signatures.last().unwrap().signature.clone();
-    continue_sync(
-        state,
-        session,
-        address.clone(),
-        public_key,
-        Some(Signature::from_str(&next_signature)?),
-        None,
-        signatures.len(),
-        txns.len(),
-    )
-    .await?;
+
+    if let Some(next_signature) = signatures.last() {
+        let next_signature = next_signature.signature.clone();
+        continue_sync(
+            state,
+            session,
+            address.clone(),
+            public_key,
+            Some(Signature::from_str(&next_signature)?),
+            None,
+            signatures.len(),
+            txns.len(),
+        )
+        .await?;
+    }
 
     Ok(())
 }
@@ -247,9 +250,12 @@ async fn continue_sync(
             event!(Level::INFO, "No more transactions found");
             break;
         }
-        before_signature = Some(Signature::from_str(
-            &signatures.last().unwrap().signature.clone(),
-        )?);
+
+        if let Some(last_signature) = signatures.last() {
+            before_signature = Some(Signature::from_str(&last_signature.signature.clone())?);
+        } else {
+            break;
+        }
 
         let mut txn_signs: Vec<TransactionSignature> = vec![];
 
