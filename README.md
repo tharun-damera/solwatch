@@ -109,7 +109,7 @@ The system handles three main scenarios:
 3. **Refresh/Sync** - When updating an indexed address with latest data
 
 <details>
-<summary>Detailed Flows</summary>
+<summary>Initial Indexing Flow</summary>
 
 ### 1. Initial Indexing Flow
 When a new address is indexed, the system:
@@ -182,7 +182,11 @@ sequenceDiagram
         end
     end
 ```
+</details>
 
+<details>
+<summary>Cached Data Access</summary>
+    
 ### 2. Cached Data Access
 When accessing already-indexed data:
 - All data is served directly from MongoDB
@@ -221,6 +225,11 @@ sequenceDiagram
         B->>C: Full transaction data
     end
 ```
+</details>
+
+
+<details>
+<summary>Refresh Flow</summary>
 
 ### 3. Refresh Flow
 When refreshing an indexed address:
