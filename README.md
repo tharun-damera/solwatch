@@ -28,6 +28,38 @@ A minimal and fast lazy indexer for the Solana blockchain.
 
 # Architecture
 
+## High-Level Architecture
+```
+Title: Solwatch - A Lazy Solana Indexer Architecture
+
+Components:
+├── Frontend Layer
+│   └── React SPA
+│       ├── Address Input
+│       ├── Indexer Stats
+│       ├── Account Data
+│       ├── Transaction History (Signatures)
+│       └── Transaction Modal (Detailed Transaction)
+│
+├── Backend Layer
+│   └── Rust/Axum Server
+│       ├── REST API (cached data)
+│       └── SSE (Server Sent Events for progess updates when indexing and syncing/refreshing)
+│
+├── Data Layer
+│   └── MongoDB (Collections)
+│       ├── address_indexing_state
+│       ├── accounts
+│       ├── transaction_signatures
+│       └── transactions
+│
+└── External Services
+    └── Solana RPC
+        ├── get_account
+        ├── get_signatures_for_address_with_config
+        └── get_transaction
+```
+
 ## System Flow Overview
 ```mermaid
 sequenceDiagram
