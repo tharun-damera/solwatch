@@ -146,7 +146,37 @@ When accessing already-indexed data:
 - No RPC calls needed
 - Fast response times
 ```mermaid
-
+sequenceDiagram
+    actor C as Client
+    participant B as Backend
+    participant D as Database
+    
+    C->>B: Enter Solana Address <br/>GET /api/accounts/{address}/status
+    B->>D: Check Address State
+    D->>B: { state: "idle" }
+    B->>C: Already indexed
+    
+    C->>B: Get Indexer Stats <br/>GET /api/accounts/{address}/indexer/stats
+    B->>D: Get state, signatures, transactions
+    D->>B: Stats
+    B->>C: { state: "idle", signatures: 125, transactions: 125 }
+    
+    C->>B: Get Account Data <br/>GET /api/accounts/{address}
+    B->>D: Get Account
+    D->>B: Account
+    B->>C: { lamports, owner, ... }
+    
+    C->>B: Get Transaction History (Signatures) <br/>GET /api/accounts/{address}/signatures?skip=0&limit=20
+    B->>D: Get 20 Signatures
+    D->>B: Signatures
+    B->>C: [{ signature, slot, ... }]
+    
+    opt Get Full Transaction
+        C->>B: Get Full Transaction for given signature <br/>GET /api/accounts/{address}/transactions/{signature}
+        B->>D: Get specific transaction
+        D->>B: Transaction
+        B->>C: Full transaction data
+    end
 ```
 
 ### 3. Refresh Flow
