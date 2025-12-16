@@ -185,7 +185,40 @@ When refreshing an indexed address:
 - Updates account information
 - Fetches new transactions incrementally
 ```mermaid
-
+sequenceDiagram
+    actor C as Client
+    participant B as Backend
+    participant S as Solana RPC
+    participant D as Database
+    
+    C->>B: Refresh Account <br/>SSE /api/accounts/{address}/refresh/sse
+    B->>D: Update Address State (state='syncing')
+    B->>C: event: syncing
+    
+    B->>S: get_account(address)
+    S->>B: Latest Account Data
+    B->>D: Update Account
+    B->>C: event: account-data
+    
+    B->>D: Get last slot signature
+    D->>B: last_signature
+    
+    loop Until caught up
+        B->>S: get_signatures_for_address(until=last_signature)
+        S->>B: New signatures
+        B->>D: Store signatures
+        B->>C: event: signatures-fetched
+        
+        loop For each signature
+            B->>S: get_transaction(signature)
+            S->>B: Transaction
+        end
+        B->>D: Store transactions
+        B->>C: event: transactions-fetched
+    end
+    
+    B->>D: Update Address State (state='idle')
+    B->>C: event: close
 ```
 
 
