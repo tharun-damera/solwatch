@@ -11,7 +11,7 @@ use axum::{
 use serde::Deserialize;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
-use tracing::{Level, event, instrument};
+use tracing::{error, info, instrument, warn};
 
 use crate::{
     app_state::AppState,
@@ -61,8 +61,7 @@ pub async fn indexer_sse(
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let session = state.get_or_create_session(&address);
     let receiver = session.sender.subscribe();
-    event!(
-        Level::WARN,
+    warn!(
         "started AtomicBool value: {}",
         session.started.load(Ordering::Relaxed)
     );
@@ -72,14 +71,13 @@ pub async fn indexer_sse(
         tokio::spawn(async move {
             if let Err(e) = solana::indexer(state.clone(), session.clone(), address.clone()).await {
                 session.emit_event(SyncStatus::Error(e.to_string())).await;
-                event!(
-                    Level::ERROR,
+                error!(
                     "Error occcured while sending event to channel: {}",
                     e.to_string()
                 );
             }
             let removed = state.remove_session(&address);
-            event!(Level::INFO, "Session removed: {}", removed);
+            info!("Session removed: {}", removed);
         });
     }
 
@@ -96,7 +94,7 @@ pub async fn indexer_sse(
     let live_stream = BroadcastStream::new(receiver).map(|msg_result| match msg_result {
         Ok(msg) => Ok(sync_message_to_event(msg)),
         Err(e) => {
-            event!(Level::ERROR, "Broadcast Error: {:#?}", e);
+            error!("Broadcast Error: {:#?}", e);
             Ok(Event::default()
                 .event("warning")
                 .data("client request delayed/lagged"))
@@ -118,8 +116,7 @@ pub async fn refresh_sse(
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let session = state.get_or_create_session(&address);
     let receiver = session.sender.subscribe();
-    event!(
-        Level::WARN,
+    warn!(
         "started AtomicBool value: {}",
         session.started.load(Ordering::Relaxed)
     );
@@ -130,15 +127,14 @@ pub async fn refresh_sse(
             if let Err(e) = solana::refresher(state.clone(), session.clone(), address.clone()).await
             {
                 session.emit_event(SyncStatus::Error(e.to_string())).await;
-                event!(
-                    Level::ERROR,
+                error!(
                     "Error occcured while sending event to channel: {}",
                     e.to_string()
                 );
             }
 
             let removed = state.remove_session(&address);
-            event!(Level::INFO, "Session removed: {}", removed);
+            info!("Session removed: {}", removed);
         });
     }
 
@@ -155,7 +151,7 @@ pub async fn refresh_sse(
     let live_stream = BroadcastStream::new(receiver).map(|msg_result| match msg_result {
         Ok(msg) => Ok(sync_message_to_event(msg)),
         Err(e) => {
-            event!(Level::ERROR, "Broadcast Error: {:#?}", e);
+            error!("Broadcast Error: {:#?}", e);
             Ok(Event::default()
                 .event("warning")
                 .data("client request delayed/lagged"))
@@ -175,7 +171,7 @@ pub async fn account_data(
     let state = state.clone();
 
     if let Some(account) = get_account(&state.db, &address).await? {
-        event!(Level::INFO, ?account);
+        info!(?account);
         Ok(Json(account))
     } else {
         Err(AppError::NotFound("Account Not Found".to_string()))

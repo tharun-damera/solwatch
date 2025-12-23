@@ -1,4 +1,4 @@
-use tracing::{Level, event, instrument};
+use tracing::{info, instrument};
 
 #[instrument]
 #[tokio::main]
@@ -20,7 +20,7 @@ async fn main() -> Result<(), backend::error::AppError> {
     let port = std::env::var("APP_PORT").expect("APP_PORT env variable is mising");
 
     let bind = format!("{}:{}", host, port);
-    event!(Level::INFO, "[+] Server running on {bind:?}...");
+    info!("[+] Server running on {bind:?}...");
 
     // Add a tcp binding to listen to requests at the configured host and port
     let listener = tokio::net::TcpListener::bind(bind).await?;

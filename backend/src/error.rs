@@ -1,15 +1,15 @@
-use axum::{Json, http::StatusCode, response::IntoResponse};
-use serde::Serialize;
 use std::{env::VarError, io::Error as IoError};
-use thiserror::Error;
 
+use axum::{Json, http::StatusCode, response::IntoResponse};
 use mongodb::bson::de::Error as MongoDeserializeError;
 use mongodb::bson::ser::Error as MongoSerializeError;
 use mongodb::error::Error as MongoError;
+use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
 use solana_client::client_error::ClientError;
 use solana_sdk::{pubkey::ParsePubkeyError, signature::ParseSignatureError};
-use tracing::{Level, event, instrument};
+use thiserror::Error;
+use tracing::{error, instrument};
 
 // Create an AppError using thiserror that handles almost all errors
 #[derive(Error, Debug)]
@@ -47,7 +47,7 @@ impl IntoResponse for AppError {
             AppError::Database(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::Solana(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
-        event! {Level::ERROR, ?message};
+        error!(?message);
 
         let body = Json(ErrorResponse { error: message });
         (status_code, body).into_response()

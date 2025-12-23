@@ -4,7 +4,7 @@ use mongodb::{
     bson::{Document, doc, from_document, to_bson},
     options::{FindOneAndUpdateOptions, ReturnDocument},
 };
-use tracing::{Level, event};
+use tracing::{error, info};
 
 use crate::error::AppError;
 use crate::models::{Account, AddressIndexingState, UpdateAccount, UpdateAddressIndexingState};
@@ -53,7 +53,7 @@ pub async fn update_address_indexing_state(
 
     match updated {
         Some(record) => {
-            event!(Level::INFO, ?record);
+            info!(?record);
             Ok(())
         }
         None => Err(AppError::NotFound("Address Not Found".into())),
@@ -73,16 +73,16 @@ pub async fn check_account_exists(db: &Database, address: &str) -> bool {
     match get_account(db, address).await {
         Ok(acc) => match acc {
             Some(account) => {
-                event!(Level::INFO, "Account Found: {account:?}");
+                info!("Account Found: {account:?}");
                 true
             }
             None => {
-                event!(Level::INFO, "Account Not Found");
+                info!("Account Not Found");
                 false
             }
         },
         Err(e) => {
-            event!(Level::ERROR, "Error occurred while finding account: {e:?}");
+            error!("Error occurred while finding account: {e:?}");
             false
         }
     }
@@ -93,7 +93,7 @@ pub async fn insert_account(db: &Database, account: &Account) -> Result<(), AppE
         .collection::<Account>(ACCOUNTS)
         .insert_one(account)
         .await?;
-    event!(Level::INFO, ?inserted);
+    info!(?inserted);
 
     Ok(())
 }
@@ -204,7 +204,7 @@ pub async fn get_indexer_stats(db: &Database, address: &str) -> Result<IndexerSt
 
     if let Some(doc) = docs.into_iter().next() {
         let decoded: IndexerStats = from_document(doc)?;
-        event!(Level::INFO, ?decoded);
+        info!(?decoded);
         Ok(decoded)
     } else {
         Err(AppError::NotFound("Account Not Found".into()))

@@ -6,7 +6,7 @@ use mongodb::bson::DateTime as BsonDateTime;
 use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use solana_transaction_status::UiTransactionEncoding;
-use tracing::{Level, event, instrument};
+use tracing::{info, instrument};
 
 use crate::{
     app_state::{AddressSession, AppState},
@@ -70,12 +70,12 @@ pub async fn indexer(
     )
     .await?;
 
-    event!(Level::INFO, "Begin indexing the address");
+    info!("Begin indexing the address");
     session.emit_event(SyncStatus::Indexing).await;
 
     // Get the Solana account data of the address
     let account = state.rpc.get_account(&public_key).await?;
-    event!(Level::INFO, ?account);
+    info!(?account);
 
     let account = Account {
         address: address.clone(),
@@ -187,8 +187,7 @@ pub async fn indexer(
         )?))
         .await;
 
-    event!(
-        Level::INFO,
+    info!(
         "Batch-1 of signatures {} & transactions {} completed",
         signatures.len(),
         txns.len()
@@ -247,7 +246,7 @@ async fn continue_sync(
             .await?;
 
         if signatures.is_empty() {
-            event!(Level::INFO, "No more transactions found");
+            info!("No more transactions found");
             break;
         }
 
@@ -333,8 +332,7 @@ async fn continue_sync(
             .await;
 
         batch += 1;
-        event!(
-            Level::INFO,
+        info!(
             "Batch-{} of signatures {} & transactions {} completed",
             batch,
             signatures.len(),
@@ -353,7 +351,7 @@ async fn continue_sync(
         },
     )
     .await?;
-    event!(Level::INFO, "Indexing is completed");
+    info!("Indexing is completed");
 
     // Send the completed indexing message to the channel
     session.emit_event(SyncStatus::Completed).await;
@@ -385,12 +383,12 @@ pub async fn refresher(
     )
     .await?;
 
-    event!(Level::INFO, "Begin syncing the address");
+    info!("Begin syncing the address");
     session.emit_event(SyncStatus::Syncing).await;
 
     // Get the Solana account data of the address
     let account = state.rpc.get_account(&public_key).await?;
-    event!(Level::INFO, ?account);
+    info!(?account);
 
     // Update the account data in DB with the latest data
     let updated = update_account(
@@ -414,7 +412,7 @@ pub async fn refresher(
 
     // Get the latest signature to continue the sync/refresh
     let latest_signature = get_latest_signature(&state.db, address.clone()).await?;
-    event!(Level::INFO, ?latest_signature);
+    info!(?latest_signature);
 
     continue_sync(
         state,
