@@ -1,49 +1,24 @@
-use std::sync::Arc;
-
-use solana_client::nonblocking::rpc_client::RpcClient;
 use tracing::{Level, event, instrument};
-
-mod app_state;
-mod cors;
-mod db;
-mod error;
-mod handlers;
-mod message;
-mod models;
-mod routes;
-mod solana;
-mod tracer;
-
-// Solana Devnet RPC URL
-const DEV_NET: &str = "https://api.devnet.solana.com";
 
 #[instrument]
 #[tokio::main]
-async fn main() -> Result<(), error::AppError> {
+async fn main() -> Result<(), backend::error::AppError> {
     // Load the variables from the .env file as env variables
     dotenvy::dotenv().ok();
 
     // Setup tracing/logging and get the WorkerGuard that flushes logs periodically
     // This guard has to live in the entry point of the program (i.e. main fn)
     // Lives as long as the main fn
-    let _guard = tracer::setup_tracing();
+    let _guard = backend::tracer::setup_tracing();
 
-    // Setup Mongo Database
-    let db = db::init().await?;
-
-    // Connect to the Solana Devnet through RPC (Remote Procedure Call)
-    let rpc = Arc::new(RpcClient::new(DEV_NET.to_string()));
-
-    // Create an AppState containing Mongo Database and RpcClient
-    let state = app_state::AppState::new(db, rpc);
-
-    // Create an app router for handling requests
-    // that takes in the AppState to perform DB operations & RPC calls
-    let app = routes::create_router(state);
+    // Build the app that initiates the DB, connects to Solana RPC and includes them in the
+    // app state for the axum route handlers
+    let app = backend::build_app().await?;
 
     // Get the host and port from env
     let host = std::env::var("APP_HOST").expect("APP_HOST env variable is mising");
     let port = std::env::var("APP_PORT").expect("APP_PORT env variable is mising");
+
     let bind = format!("{}:{}", host, port);
     event!(Level::INFO, "[+] Server running on {bind:?}...");
 
